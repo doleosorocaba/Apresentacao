@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Livro com Virada de Página Realista</title>
+    <style>
+        /* ESTILOS CORRIGIDOS PARA PAGINAÇÃO */
+        .page {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: #f5f5dc;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            box-sizing: border-box;
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+            transition: transform 1s ease-in-out;
+            transform-origin: left center;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            /* CORREÇÃO PRINCIPAL: Todas as páginas começam invisíveis */
+            transform: rotateY(180deg);
+            opacity: 0;
+            z-index: 1;
+        }
+
+        /* Apenas a primeira página visível inicialmente */
+        .page:first-child {
+            transform: rotateY(0deg);
+            opacity: 1;
+            z-index: 2;
+        }
+
+        /* Página atualmente visível */
+        .page.active {
+            transform: rotateY(0deg);
+            opacity: 1;
+            z-index: 3;
+        }
+
+        /* Página que está sendo virada */
+        .page.flipping {
+            z-index: 4;
+            box-shadow: -10px 0 20px rgba(0, 0, 0, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <!-- [SEU HTML ORIGINAL AQUI] -->
+
+    <script>
+        // JAVASCRIPT CORRIGIDO
+        let currentPage = 1;
+        const totalPages = 7; // Ajuste conforme seu número de páginas
+        const pageSound = document.getElementById('pageSound');
+
+        function flipPage(direction) {
+            const nextPage = direction === 'next' ? currentPage + 1 : currentPage - 1;
+            
+            // Verifica limites
+            if (nextPage < 1 || nextPage > totalPages) return;
+
+            const currentPageElem = document.getElementById(`page${currentPage}`);
+            const nextPageElem = document.getElementById(`page${nextPage}`);
+
+            // Prepara animação
+            currentPageElem.classList.add('flipping');
+            
+            // Toca som da página (se disponível)
+            if (pageSound) {
+                pageSound.currentTime = 0;
+                pageSound.play().catch(e => console.log("Áudio não pode ser reproduzido:", e));
+            }
+
+            // Animação de virar página
+            setTimeout(() => {
+                currentPageElem.style.transform = direction === 'next' 
+                    ? 'rotateY(-180deg)' 
+                    : 'rotateY(180deg)';
+                currentPageElem.classList.remove('active');
+                
+                nextPageElem.style.transform = 'rotateY(0deg)';
+                nextPageElem.classList.add('active');
+                
+                // Atualiza página atual
+                currentPage = nextPage;
+                
+                // Remove classe de animação
+                setTimeout(() => {
+                    currentPageElem.classList.remove('flipping');
+                }, 300);
+            }, 50);
+        }
+
+        // Inicialização correta
+        document.addEventListener('DOMContentLoaded', () => {
+            // Garante que apenas a primeira página está visível
+            document.getElementById('page1').classList.add('active');
+            
+            // Configura botões
+            document.getElementById('nextPage').addEventListener('click', () => flipPage('next'));
+            document.getElementById('prevPage').addEventListener('click', () => flipPage('prev'));
+        });
+    </script>
+</body>
+</html>
