@@ -57,7 +57,7 @@
             box-sizing: border-box;
             transform-style: preserve-3d;
             backface-visibility: hidden;
-            transition: transform 0.8s cubic-bezier(0.42, 0, 0.17, 0.99);
+            transition: transform 1.2s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 1.2s ease;
             transform-origin: left center;
             overflow: hidden;
             display: flex;
@@ -451,7 +451,7 @@
                 isAnimating = false;
             }
 
-            // Função de virar página com tratamento de erros
+            // Função de virar página com tempo ajustado
             function flipPage(direction) {
                 if (isAnimating) return;
                 
@@ -475,15 +475,19 @@
                 } catch(e) { console.log("Erro no áudio:", e); }
 
                 // Prepara a próxima página
+                nextPageElem.style.transition = 'transform 1.2s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 1.2s ease';
                 nextPageElem.style.transform = 'rotateY(0deg)';
+                nextPageElem.style.opacity = '1';
                 nextPageElem.classList.add('active');
                 nextPageElem.style.zIndex = '4';
                 
-                // Inicia animação
+                // Configura a animação da página atual
+                currentPageElem.style.transition = 'transform 1.2s cubic-bezier(0.25, 0.1, 0.25, 1), opacity 1.2s ease';
                 currentPageElem.classList.add('flipping');
                 currentPageElem.style.transform = direction === 'next' 
                     ? 'rotateY(-180deg)' 
                     : 'rotateY(180deg)';
+                currentPageElem.style.opacity = '0.9';
                 
                 // Limpeza após animação
                 currentPageElem.addEventListener('transitionend', function handler() {
@@ -491,11 +495,16 @@
                     
                     currentPageElem.classList.remove('active', 'flipping');
                     currentPageElem.style.zIndex = '1';
+                    currentPageElem.style.opacity = '0';
                     nextPageElem.style.zIndex = '3';
                     
                     currentPage = nextPage;
                     isAnimating = false;
                     prevButton.disabled = nextButton.disabled = false;
+                    
+                    // Reseta as transições para o padrão
+                    currentPageElem.style.transition = '';
+                    nextPageElem.style.transition = '';
                 }, { once: true });
             }
 
