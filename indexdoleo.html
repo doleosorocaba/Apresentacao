@@ -43,6 +43,7 @@
             margin: 20px 0;
             transform: scale(1);
             transition: transform 0.3s ease;
+            transform-style: preserve-3d;
         }
 
         .page {
@@ -57,7 +58,7 @@
             box-sizing: border-box;
             transform-style: preserve-3d;
             backface-visibility: hidden;
-            transition: transform 1s ease-in-out;
+            transition: transform 0.8s cubic-bezier(0.42, 0, 0.17, 0.99);
             transform-origin: left center;
             overflow: hidden;
             display: flex;
@@ -84,6 +85,7 @@
         .page.flipping {
             z-index: 4;
             box-shadow: -10px 0 20px rgba(0, 0, 0, 0.2);
+            pointer-events: none;
         }
 
         .page-number {
@@ -117,6 +119,11 @@
 
         .nav-button:hover {
             opacity: 0.8;
+        }
+
+        .nav-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .top-controls {
@@ -175,6 +182,26 @@
             color: #ffd700;
         }
 
+        .loading-spinner {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top: 4px solid #333;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            z-index: 1001;
+            display: none;
+        }
+
+        @keyframes spin {
+            0% { transform: translate(-50%, -50%) rotate(0deg); }
+            100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+
         @media (max-width: 600px) {
             .book {
                 width: 95%;
@@ -209,37 +236,58 @@
         }
 
         @media print {
-            body {
-                visibility: visible;
-                display: block;
-            }
-
-            .book {
-                width: 100%;
-                height: auto;
-                position: static;
-                box-shadow: none;
-                visibility: visible;
-                display: block;
-            }
-
-            .page {
-                position: static !important;
-                transform: none !important;
-                box-shadow: none;
-                margin-bottom: 20px;
-                page-break-after: always;
+            body, .book, .page {
                 visibility: visible !important;
                 display: block !important;
+                opacity: 1 !important;
+                transform: none !important;
+                position: static !important;
+                page-break-after: always;
+                page-break-inside: avoid;
             }
-
-            .controls, .close-button, .print-button, .top-controls {
-                display: none;
+            
+            body {
+                background-color: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            
+            .book {
+                height: auto !important;
+                width: 100% !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                transform: none !important;
+            }
+            
+            .page {
+                margin: 0 !important;
+                padding: 10px !important;
+                box-shadow: none !important;
+                break-after: page;
+                height: auto !important;
+            }
+            
+            .page img {
+                max-height: 95vh !important;
+                object-fit: contain !important;
+            }
+            
+            /* Garante que todas as páginas sejam visíveis */
+            .page:not(.active) {
+                display: block !important;
+                visibility: visible !important;
+            }
+            
+            .controls, .close-button, .print-button, .top-controls, .loading-spinner {
+                display: none !important;
             }
         }
     </style>
 </head>
 <body>
+    <div class="loading-spinner" id="loadingSpinner"></div>
+    
     <div class="book-container">
         <div class="top-controls">
             <button class="zoom-button" id="zoomIn">+</button>
@@ -250,31 +298,31 @@
 
         <div class="book" id="book">
             <div class="page active" id="page1">
-                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina1.jpg" alt="Página 1">
+                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina1.jpg" alt="Página 1" loading="lazy">
                 <div class="page-number">1</div>
             </div>
             <div class="page" id="page2">
-                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina2.jpg" alt="Página 2">
+                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina2.jpg" alt="Página 2" loading="lazy">
                 <div class="page-number">2</div>
             </div>
             <div class="page" id="page3">
-                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina3.jpg" alt="Página 3">
+                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina3.jpg" alt="Página 3" loading="lazy">
                 <div class="page-number">3</div>
             </div>
             <div class="page" id="page4">
-                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina4.jpg" alt="Página 4">
+                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina4.jpg" alt="Página 4" loading="lazy">
                 <div class="page-number">4</div>
             </div>
             <div class="page" id="page5">
-                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina5.jpg" alt="Página 5">
+                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina5.jpg" alt="Página 5" loading="lazy">
                 <div class="page-number">5</div>
             </div>
             <div class="page" id="page6">
-                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina6.jpg" alt="Página 6">
+                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina6.jpg" alt="Página 6" loading="lazy">
                 <div class="page-number">6</div>
             </div>
             <div class="page" id="page7">
-                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina7.jpg" alt="Página 7">
+                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina7.jpg" alt="Página 7" loading="lazy">
                 <div class="page-number">7</div>
             </div>
         </div>
@@ -282,16 +330,16 @@
         <div class="controls">
             <button class="nav-button" id="prevPage">
                 <span>&lt;Prev</span>
-                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/gotaesquerda.png" alt="Anterior" width="32" height="32">
+                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/gotaesquerda.png" alt="Anterior" width="32" height="32" loading="lazy">
             </button>
             <button class="nav-button" id="nextPage">
-                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/gotadireita.png" alt="Próxima" width="32" height="32">
+                <img src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/gotadireita.png" alt="Próxima" width="32" height="32" loading="lazy">
                 <span>Next&gt;</span>
             </button>
         </div>
     </div>
 
-    <audio id="pageSound">
+    <audio id="pageSound" preload="auto">
         <source src="https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/page-flip-sound.mp3" type="audio/mpeg">
     </audio>
 
@@ -314,55 +362,106 @@
             const zoomInButton = getElementSafe('zoomIn');
             const zoomOutButton = getElementSafe('zoomOut');
             const pageSound = getElementSafe('pageSound');
+            const loadingSpinner = getElementSafe('loadingSpinner');
 
             if (!bookElement) return;
 
             let currentPage = 1;
             const totalPages = 7;
             let currentZoom = 1;
+            let isAnimating = false;
+
+            // Pré-carregar imagens
+            function preloadImages() {
+                loadingSpinner.style.display = 'block';
+                const promises = [];
+                
+                for (let i = 1; i <= totalPages; i++) {
+                    const img = new Image();
+                    img.src = `https://raw.githubusercontent.com/doleosorocaba/Apresentacao/main/pagina${i}.jpg`;
+                    
+                    promises.push(new Promise((resolve) => {
+                        img.onload = resolve;
+                        img.onerror = resolve;
+                    }));
+                }
+                
+                Promise.all(promises).then(() => {
+                    loadingSpinner.style.display = 'none';
+                });
+            }
 
             // Função de virar página com tratamento de erros
             function flipPage(direction) {
+                if (isAnimating) return;
+                
                 const nextPage = direction === 'next' ? currentPage + 1 : currentPage - 1;
                 
                 if (nextPage < 1 || nextPage > totalPages) return;
 
-                const currentPageElem = getElementSafe(`page${currentPage}`);
-                const nextPageElem = getElementSafe(`page${nextPage}`);
+                const currentPageElem = document.getElementById(`page${currentPage}`);
+                const nextPageElem = document.getElementById(`page${nextPage}`);
 
                 if (!currentPageElem || !nextPageElem) return;
 
-                currentPageElem.classList.add('flipping');
+                isAnimating = true;
+                prevButton.disabled = nextButton.disabled = true;
                 
                 try {
                     if (pageSound) {
                         pageSound.currentTime = 0;
-                        pageSound.play().catch(e => console.log("Áudio não pode ser reproduzido"));
+                        pageSound.play().catch(e => console.log("Áudio não pode ser reproduzido:", e));
                     }
                 } catch(e) { console.log("Erro no áudio:", e); }
 
-                setTimeout(() => {
-                    try {
-                        currentPageElem.style.transform = direction === 'next' 
-                            ? 'rotateY(-180deg)' 
-                            : 'rotateY(180deg)';
-                        currentPageElem.classList.remove('active');
-                        
-                        nextPageElem.style.transform = 'rotateY(0deg)';
-                        nextPageElem.classList.add('active');
-                        
-                        currentPage = nextPage;
-                        
-                        setTimeout(() => {
-                            currentPageElem.classList.remove('flipping');
-                        }, 300);
-                    } catch(e) { console.log("Erro na animação:", e); }
-                }, 50);
+                // Prepara a próxima página
+                nextPageElem.style.transform = 'rotateY(0deg)';
+                nextPageElem.classList.add('active');
+                nextPageElem.style.zIndex = '4';
+                
+                // Inicia animação
+                currentPageElem.classList.add('flipping');
+                currentPageElem.style.transform = direction === 'next' 
+                    ? 'rotateY(-180deg)' 
+                    : 'rotateY(180deg)';
+                
+                // Limpeza após animação
+                currentPageElem.addEventListener('transitionend', function handler() {
+                    currentPageElem.removeEventListener('transitionend', handler);
+                    
+                    currentPageElem.classList.remove('active', 'flipping');
+                    currentPageElem.style.zIndex = '1';
+                    nextPageElem.style.zIndex = '3';
+                    
+                    currentPage = nextPage;
+                    isAnimating = false;
+                    prevButton.disabled = nextButton.disabled = false;
+                }, { once: true });
+            }
+
+            // Debounce para evitar múltiplos cliques rápidos
+            function debounce(func, wait = 500) {
+                let timeout;
+                return function(...args) {
+                    clearTimeout(timeout);
+                    timeout = setTimeout(() => func.apply(this, args), wait);
+                };
             }
 
             // Event listeners seguros
-            if (nextButton) nextButton.addEventListener('click', () => flipPage('next'));
-            if (prevButton) prevButton.addEventListener('click', () => flipPage('prev'));
+            if (nextButton) nextButton.addEventListener('click', debounce(() => flipPage('next'), 300));
+            if (prevButton) prevButton.addEventListener('click', debounce(() => flipPage('prev'), 300));
+
+            // Teclado navegação
+            document.addEventListener('keydown', (e) => {
+                if (isAnimating) return;
+                
+                if (e.key === 'ArrowRight') {
+                    flipPage('next');
+                } else if (e.key === 'ArrowLeft') {
+                    flipPage('prev');
+                }
+            });
 
             if (closeButton) {
                 closeButton.addEventListener('click', () => {
@@ -374,7 +473,18 @@
 
             if (printButton) {
                 printButton.addEventListener('click', () => {
-                    window.print();
+                    // Força todas as páginas visíveis antes de imprimir
+                    document.querySelectorAll('.page').forEach(page => {
+                        page.style.display = 'block';
+                        page.style.visibility = 'visible';
+                        page.style.opacity = '1';
+                        page.style.transform = 'none';
+                        page.style.position = 'static';
+                    });
+                    
+                    setTimeout(() => {
+                        window.print();
+                    }, 100);
                 });
             }
 
@@ -402,6 +512,9 @@
                     page.classList.remove('active');
                 }
             });
+
+            // Inicia pré-carregamento
+            preloadImages();
         });
     </script>
 </body>
