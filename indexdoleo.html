@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Política de Segurança Corrigida -->
+    <meta http-equiv="Content-Security-Policy" content="
+        default-src 'self' https://*.githubusercontent.com;
+        script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
+        style-src 'self' 'unsafe-inline';
+        img-src 'self' https://*.githubusercontent.com data:;
+        media-src 'self' https://*.githubusercontent.com;
+        connect-src 'self'">
+    <title>Livro com Virada de Página Realista</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+            overflow-x: hidden;
+        }
+
+        .book-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 800px;
+            position: relative;
+        }
+
+        .book {
+            width: 90%;
+            height: auto;
+            min-height: 300px;
+            position: relative;
+            perspective: 1000px;
+            margin: 20px 0;
+            transform: scale(1);
+            transition: transform 0.3s ease;
+        }
+
+        .page {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: #f5f5dc;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            box-sizing: border-box;
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+            transition: transform 1s ease-in-out;
+            transform-origin: left center;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            transform: rotateY(180deg);
+            opacity: 0;
+            z-index: 1;
+        }
+
+        .page:first-child {
+            transform: rotateY(0deg);
+            opacity: 1;
+            z-index: 2;
+        }
+
+        .page.active {
+            transform: rotateY(0deg);
+            opacity: 1;
+            z-index: 3;
+        }
+
+        .page.flipping {
+            z-index: 4;
+            box-shadow: -10px 0 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .page-number {
+            font-size: 12px;
+            color: #555;
+            margin-top: 5px;
+        }
+
+        .controls {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 1000;
+        }
+
+        .nav-button {
+            font-size: 20px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 8px;
+            transition: opacity 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .nav-button:hover {
+            opacity: 0.8;
+        }
+
+        .top-controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .close-button, .zoom-button {
+            font-size: 20px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 8px;
+            transition: opacity 0.3s ease;
+        }
+
+        .close-button {
+            color: #333;
+        }
+
+        .zoom-button {
+            background-color: black;
+            color: gold;
+            border-radius: 5px;
+        }
+
+        .zoom-button:hover {
+            background-color: #333;
+            color: #ffd700;
+        }
+
+        .page img {
+            width: 100%;
+            height: auto;
+            max-height: 80%;
+            object-fit: contain;
+        }
+
+        .print-button {
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            background-color: black;
+            color: gold;
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .print-button:hover {
+            background-color: #333;
+            color: #ffd700;
+        }
+
+        @media (max-width: 600px) {
+            .book {
+                width: 95%;
+            }
+
+            .page {
+                padding: 5px;
+            }
+
+            .page-number {
+                font-size: 10px;
+            }
+
+            .controls {
+                gap: 5px;
+            }
+
+            .nav-button {
+                font-size: 18px;
+                padding: 5px;
+            }
+
+            .close-button, .zoom-button {
+                font-size: 18px;
+                padding: 5px;
+            }
+
+            .print-button {
+                padding: 6px 12px;
+                font-size: 12px;
+            }
+        }
+
+        @media print {
+            body {
+                visibility: visible;
+                display: block;
+            }
+
+            .book {
+                width: 100%;
+                height: auto;
+                position: static;
+                box-shadow: none;
+                visibility: visible;
+                display: block;
+            }
+
+            .page {
+                position: static !important;
+                transform: none !important;
+                box-shadow: none;
+                margin-bottom: 20px;
+                page-break-after: always;
+                visibility: visible !important;
+                display: block !important;
+            }
+
+            .controls, .close-button, .print-button, .top-controls {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="book-container">
+        <div class="top-controls">
+            <button class="zoom-button" id="zoomIn">+</button>
+            <button class="zoom-button" id="zoomOut">-</button>
+            <button class="print-button" id="printButton">Imprimir</button>
+            <button class="close-button" id="closeButton">✖</button>
+        </div>
+
+        <div class="book" id="book">
+            <div class="page active" id="page1">
+                <img src="https://raw.githubusercontent.com/Do-Oleo-Sorocaba/Apresentacao/main/pagina1.jpg" alt="Página 1">
+                <div class="page-number">1</div>
+            </div>
+            <div class="page" id="page2">
+                <img src="https://raw.githubusercontent.com/Do-Oleo-Sorocaba/Apresentacao/main/pagina2.jpg" alt="Página 2">
+                <div class="page-number">2</div>
+            </div>
+            <div class="page" id="page3">
+                <img src="https://raw.githubusercontent.com/Do-Oleo-Sorocaba/Apresentacao/main/pagina3.jpg" alt="Página 3">
+                <div class="page-number">3</div>
+            </div>
+            <div class="page" id="page4">
+                <img src="https://raw.githubusercontent.com/Do-Oleo-Sorocaba/Apresentacao/main/pagina4.jpg" alt="Página 4">
+                <div class="page-number">4</div>
+            </div>
+            <div class="page" id="page5">
+                <img src="https://raw.githubusercontent.com/Do-Oleo-Sorocaba/Apresentacao/main/pagina5.jpg" alt="Página 5">
+                <div class="page-number">5</div>
+            </div>
+            <div class="page" id="page6">
+                <img src="https://raw.githubusercontent.com/Do-Oleo-Sorocaba/Apresentacao/main/pagina6.jpg" alt="Página 6">
+                <div class="page-number">6</div>
+            </div>
+            <div class="page" id="page7">
+                <img src="https://raw.githubusercontent.com/Do-Oleo-Sorocaba/Apresentacao/main/pagina7.jpg" alt="Página 7">
+                <div class="page-number">7</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="nav-button" id="prevPage">
+                <span>&lt;Prev</span>
+                <img src="https://raw.githubusercontent.com/Do-Oleo-Sorocaba/Apresentacao/main/gotaesquerda.png" alt="Anterior" width="32" height="32">
+            </button>
+            <button class="nav-button" id="nextPage">
+                <img src="https://raw.githubusercontent.com/Do-Oleo-Sorocaba/Apresentacao/main/gotadireita.png" alt="Próxima" width="32" height="32">
+                <span>Next&gt;</span>
+            </button>
+        </div>
+    </div>
+
+    <audio id="pageSound">
+        <source src="https://raw.githubusercontent.com/Do-Oleo-Sorocaba/Apresentacao/main/page-flip-sound.mp3" type="audio/mpeg">
+    </audio>
+
+    <script>
+        // Verificação segura de elementos
+        function getElementSafe(id) {
+            const el = document.getElementById(id);
+            if (!el) console.error(`Elemento ${id} não encontrado`);
+            return el;
+        }
+
+        // Inicialização segura
+        document.addEventListener('DOMContentLoaded', function() {
+            // Elementos principais
+            const bookElement = getElementSafe('book');
+            const prevButton = getElementSafe('prevPage');
+            const nextButton = getElementSafe('nextPage');
+            const printButton = getElementSafe('printButton');
+            const closeButton = getElementSafe('closeButton');
+            const zoomInButton = getElementSafe('zoomIn');
+            const zoomOutButton = getElementSafe('zoomOut');
+            const pageSound = getElementSafe('pageSound');
+
+            if (!bookElement) return;
+
+            let currentPage = 1;
+            const totalPages = 7;
+            let currentZoom = 1;
+
+            // Função de virar página com tratamento de erros
+            function flipPage(direction) {
+                const nextPage = direction === 'next' ? currentPage + 1 : currentPage - 1;
+                
+                if (nextPage < 1 || nextPage > totalPages) return;
+
+                const currentPageElem = getElementSafe(`page${currentPage}`);
+                const nextPageElem = getElementSafe(`page${nextPage}`);
+
+                if (!currentPageElem || !nextPageElem) return;
+
+                currentPageElem.classList.add('flipping');
+                
+                try {
+                    if (pageSound) {
+                        pageSound.currentTime = 0;
+                        pageSound.play().catch(e => console.log("Áudio não pode ser reproduzido"));
+                    }
+                } catch(e) { console.log("Erro no áudio:", e); }
+
+                setTimeout(() => {
+                    try {
+                        currentPageElem.style.transform = direction === 'next' 
+                            ? 'rotateY(-180deg)' 
+                            : 'rotateY(180deg)';
+                        currentPageElem.classList.remove('active');
+                        
+                        nextPageElem.style.transform = 'rotateY(0deg)';
+                        nextPageElem.classList.add('active');
+                        
+                        currentPage = nextPage;
+                        
+                        setTimeout(() => {
+                            currentPageElem.classList.remove('flipping');
+                        }, 300);
+                    } catch(e) { console.log("Erro na animação:", e); }
+                }, 50);
+            }
+
+            // Event listeners seguros
+            if (nextButton) nextButton.addEventListener('click', () => flipPage('next'));
+            if (prevButton) prevButton.addEventListener('click', () => flipPage('prev'));
+
+            if (closeButton) {
+                closeButton.addEventListener('click', () => {
+                    if (confirm("Tem certeza que deseja sair?")) {
+                        window.close();
+                    }
+                });
+            }
+
+            if (printButton) {
+                printButton.addEventListener('click', () => {
+                    window.print();
+                });
+            }
+
+            if (zoomInButton && zoomOutButton && bookElement) {
+                zoomInButton.addEventListener('click', () => {
+                    if (currentZoom < 2) {
+                        currentZoom += 0.1;
+                        bookElement.style.transform = `scale(${currentZoom})`;
+                    }
+                });
+
+                zoomOutButton.addEventListener('click', () => {
+                    if (currentZoom > 0.5) {
+                        currentZoom -= 0.1;
+                        bookElement.style.transform = `scale(${currentZoom})`;
+                    }
+                });
+            }
+
+            // Garante que apenas a primeira página está visível inicialmente
+            const pages = document.querySelectorAll('.page');
+            pages.forEach((page, index) => {
+                if (index !== 0) {
+                    page.style.transform = 'rotateY(180deg)';
+                    page.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
