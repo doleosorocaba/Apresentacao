@@ -265,6 +265,7 @@
                 box-shadow: none !important;
                 break-after: page;
                 height: auto !important;
+                z-index: auto !important;
             }
             
             .page img {
@@ -385,50 +386,69 @@
                 });
             }
 
-            // Função para salvar o estado atual
+            // Função para salvar o estado atual completo
             function saveCurrentState() {
-                return {
+                const state = {
                     activePage: currentPage,
-                    pages: Array.from(document.querySelectorAll('.page')).map(page => ({
-                        id: page.id,
+                    pages: {},
+                    bookTransform: bookElement.style.transform,
+                    bookClasses: Array.from(bookElement.classList)
+                };
+
+                document.querySelectorAll('.page').forEach(page => {
+                    state.pages[page.id] = {
                         transform: page.style.transform,
                         opacity: page.style.opacity,
                         display: page.style.display,
                         visibility: page.style.visibility,
                         position: page.style.position,
+                        zIndex: page.style.zIndex,
                         classList: Array.from(page.classList)
-                    }))
-                };
-            }
-
-            // Função para restaurar o estado
-            function restoreState(state) {
-                document.querySelectorAll('.page').forEach(page => {
-                    page.style.display = '';
-                    page.style.visibility = '';
-                    page.style.opacity = '';
-                    page.style.transform = '';
-                    page.style.position = '';
-                    page.classList.remove('active', 'flipping');
+                    };
                 });
 
-                // Restaura a página ativa
-                const activePage = document.getElementById(`page${state.activePage}`);
+                return state;
+            }
+
+            // Função para restaurar completamente o estado
+            function restoreState(state) {
+                if (!state) return;
+
+                // Restaura o livro primeiro
+                bookElement.style.transform = state.bookTransform;
+                bookElement.className = '';
+                state.bookClasses.forEach(cls => bookElement.classList.add(cls));
+
+                // Restaura todas as páginas
+                document.querySelectorAll('.page').forEach(page => {
+                    const pageState = state.pages[page.id];
+                    if (pageState) {
+                        page.style.transform = pageState.transform || '';
+                        page.style.opacity = pageState.opacity || '';
+                        page.style.display = pageState.display || '';
+                        page.style.visibility = pageState.visibility || '';
+                        page.style.position = pageState.position || '';
+                        page.style.zIndex = pageState.zIndex || '';
+                        
+                        // Limpa e restaura todas as classes
+                        page.className = '';
+                        pageState.classList.forEach(cls => page.classList.add(cls));
+                    }
+                });
+
+                // Garante que a página ativa está correta
+                currentPage = state.activePage;
+                const activePage = document.getElementById(`page${currentPage}`);
                 if (activePage) {
                     activePage.classList.add('active');
                     activePage.style.transform = 'rotateY(0deg)';
                     activePage.style.opacity = '1';
+                    activePage.style.zIndex = '3';
                 }
 
-                // Restaura as outras páginas
-                state.pages.forEach(pageState => {
-                    const page = document.getElementById(pageState.id);
-                    if (page && !page.classList.contains('active')) {
-                        page.style.transform = pageState.transform || 'rotateY(180deg)';
-                        page.style.opacity = pageState.opacity || '0';
-                        pageState.classList.forEach(cls => page.classList.add(cls));
-                    }
-                });
+                // Reativa a navegação
+                prevButton.disabled = nextButton.disabled = false;
+                isAnimating = false;
             }
 
             // Função de virar página com tratamento de erros
@@ -513,28 +533,27 @@
 
             if (printButton) {
                 printButton.addEventListener('click', () => {
-                    // Salva o estado atual antes da impressão
+                    // Salva o estado completo antes da impressão
                     prePrintState = saveCurrentState();
 
-                    // Força todas as páginas visíveis para impressão
+                    // Prepara para impressão - mostra todas as páginas
                     document.querySelectorAll('.page').forEach(page => {
                         page.style.display = 'block';
                         page.style.visibility = 'visible';
                         page.style.opacity = '1';
                         page.style.transform = 'none';
                         page.style.position = 'static';
+                        page.style.zIndex = 'auto';
                     });
 
-                    // Adiciona listener para após a impressão
+                    // Configura o handler para após a impressão
                     const afterPrintHandler = () => {
-                        if (prePrintState) {
-                            restoreState(prePrintState);
-                            prePrintState = null;
-                        }
+                        restoreState(prePrintState);
                         window.removeEventListener('afterprint', afterPrintHandler);
                     };
                     window.addEventListener('afterprint', afterPrintHandler);
 
+                    // Dispara a impressão com pequeno delay
                     setTimeout(() => {
                         window.print();
                     }, 100);
