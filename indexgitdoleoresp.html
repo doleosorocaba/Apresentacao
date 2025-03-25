@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Livro com Virada de Página Realista</title>
+    <style>
+        /* Estilos CSS */
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background-color: #f4f4f4;
+            overflow-x: hidden; /* Evita rolagem horizontal */
+        }
+
+        .book-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 800px; /* Largura máxima para desktop */
+            position: relative;
+        }
+
+        .book {
+            width: 90%; /* Largura ajustável para dispositivos móveis */
+            height: auto; /* Altura ajustável */
+            min-height: 300px; /* Altura mínima para evitar que fique muito pequeno */
+            position: relative;
+            perspective: 1000px;
+            margin: 20px 0; /* Espaçamento externo */
+            transform: scale(1); /* Zoom inicial */
+            transition: transform 0.3s ease; /* Transição suave para o zoom */
+        }
+
+        .page {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            background-color: #f5f5dc; /* Cor de página de livro (bege claro) */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 10px; /* Reduzi o padding para telas menores */
+            box-sizing: border-box;
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+            transition: transform 1s ease-in-out;
+            transform-origin: left center; /* Ponto de origem da transformação */
+            overflow: hidden; /* Evita que o conteúdo ultrapasse os limites da página */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between; /* Alinha o conteúdo no topo e o número na base */
+        }
+
+        /* Número da página */
+        .page-number {
+            font-size: 12px; /* Tamanho menor para telas pequenas */
+            color: #555;
+            margin-top: 5px; /* Espaço reduzido entre a imagem e o número */
+        }
+
+        /* Esconde todas as páginas, exceto a primeira */
+        .page:not(:first-child) {
+            transform: rotateY(180deg);
+        }
+
+        .controls {
+            margin-top: 10px; /* Espaçamento menor para telas pequenas */
+            display: flex;
+            gap: 10px; /* Espaço menor entre os botões */
+            position: fixed; /* Fixa os botões na parte inferior */
+            bottom: 20px; /* Distância do fundo */
+            left: 50%; /* Centraliza horizontalmente */
+            transform: translateX(-50%); /* Ajusta o posicionamento */
+            z-index: 1000; /* Garante que fique acima de tudo */
+        }
+
+        /* Estilo para os botões de navegação */
+        .nav-button {
+            font-size: 20px; /* Tamanho menor para telas pequenas */
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 8px; /* Padding menor */
+            transition: opacity 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px; /* Espaço entre o texto e a imagem */
+        }
+
+        .nav-button:hover {
+            opacity: 0.8; /* Efeito de hover suave */
+        }
+
+        /* Efeito de sombra durante a virada */
+        .page.flipping {
+            box-shadow: -10px 0 20px rgba(0, 0, 0, 0.2);
+        }
+
+        /* Botão de fechar e zoom */
+        .top-controls {
+            position: fixed; /* Fixa os botões no topo */
+            top: 10px; /* Distância do topo */
+            right: 10px; /* Distância da direita */
+            display: flex;
+            gap: 10px; /* Espaço entre os botões */
+            z-index: 1000; /* Garante que fique acima de tudo */
+        }
+
+        .close-button, .zoom-button {
+            font-size: 20px; /* Tamanho menor para telas pequenas */
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 8px; /* Padding menor */
+            transition: opacity 0.3s ease;
+        }
+
+        .close-button {
+            color: #333; /* Cor do botão de fechar */
+        }
+
+        .zoom-button {
+            background-color: black; /* Fundo preto */
+            color: gold; /* Texto dourado */
+            border-radius: 5px;
+        }
+
+        .zoom-button:hover {
+            background-color: #333; /* Fundo preto mais escuro no hover */
+            color: #ffd700; /* Texto dourado mais brilhante no hover */
+        }
+
+        /* Estilo para imagens */
+        .page img {
+            width: 100%;
+            height: auto;
+            max-height: 80%; /* Garante que a imagem não ultrapasse o espaço da página */
+            object-fit: contain; /* Ajusta a imagem para caber inteira na página */
+        }
+
+        /* Estilo para o botão de imprimir */
+        .print-button {
+            padding: 8px 16px; /* Padding menor */
+            font-size: 14px; /* Tamanho menor para telas pequenas */
+            cursor: pointer;
+            background-color: black; /* Fundo preto */
+            color: gold; /* Texto dourado */
+            border: none;
+            border-radius: 5px;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Efeito de hover */
+        .print-button:hover {
+            background-color: #333; /* Fundo preto mais escuro no hover */
+            color: #ffd700; /* Texto dourado mais brilhante no hover */
+        }
+
+        /* Estilos específicos para telas pequenas (celulares) */
+        @media (max-width: 600px) {
+            .book {
+                width: 95%; /* Largura maior para telas pequenas */
+                height: auto; /* Altura ajustável */
+            }
+
+            .page {
+                padding: 5px; /* Padding menor para telas pequenas */
+            }
+
+            .page-number {
+                font-size: 10px; /* Tamanho menor para telas pequenas */
+            }
+
+            .controls {
+                gap: 5px; /* Espaço menor entre os botões */
+            }
+
+            .nav-button {
+                font-size: 18px; /* Tamanho menor para telas pequenas */
+                padding: 5px; /* Padding menor */
+            }
+
+            .close-button, .zoom-button {
+                font-size: 18px; /* Tamanho menor para telas pequenas */
+                padding: 5px; /* Padding menor */
+            }
+
+            .print-button {
+                padding: 6px 12px; /* Padding menor */
+                font-size: 12px; /* Tamanho menor para telas pequenas */
+            }
+        }
+
+        /* Estilos específicos para impressão */
+        @media print {
+            body {
+                visibility: visible; /* Garante que o body seja visível */
+                display: block; /* Remove o layout flexível */
+            }
+
+            .book {
+                width: 100%;
+                height: auto;
+                position: static;
+                box-shadow: none;
+                visibility: visible; /* Garante que o livro seja visível */
+                display: block; /* Remove o posicionamento relativo */
+            }
+
+            .page {
+                position: static !important; /* Remove o posicionamento absoluto */
+                transform: none !important; /* Remove todas as transformações */
+                box-shadow: none;
+                margin-bottom: 20px; /* Espaço entre as páginas na impressão */
+                page-break-after: always; /* Força uma quebra de página após cada página */
+                visibility: visible !important; /* Garante que todas as páginas sejam visíveis */
+                display: block !important; /* Garante que todas as páginas sejam exibidas */
+            }
+
+            .controls, .close-button, .print-button, .top-controls {
+                display: none; /* Oculta os botões durante a impressão */
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Estrutura HTML -->
+    <div class="book-container">
+        <!-- Botões de zoom, imprimir e fechar -->
+        <div class="top-controls">
+            <button class="zoom-button" id="zoomIn">+</button>
+            <button class="zoom-button" id="zoomOut">-</button>
+            <button class="print-button" id="printButton">Imprimir</button>
+            <button class="close-button" id="closeButton">✖</button>
+        </div>
+
+        <!-- Livro -->
+        <div class="book" id="book">
+            <div class="page" id="page1">
+                <img src="https://raw.githubusercontent.com/DavissonCoelho/avantlube/main/pagina1.jpg" alt="Página 1">
+                <div class="page-number">1</div>
+            </div>
+            <div class="page" id="page2">
+                <img src="https://raw.githubusercontent.com/DavissonCoelho/avantlube/main/pagina2.jpg" alt="Página 2">
+                <div class="page-number">2</div>
+            </div>
+            <div class="page" id="page3">
+                <img src="https://raw.githubusercontent.com/DavissonCoelho/avantlube/main/pagina3.jpg" alt="Página 3">
+                <div class="page-number">3</div>
+            </div>
+            <div class="page" id="page4">
+                <img src="https://raw.githubusercontent.com/DavissonCoelho/avantlube/main/pagina4.jpg" alt="Página 4">
+                <div class="page-number">4</div>
+            </div>
+            <div class="page" id="page5">
+                <img src="https://raw.githubusercontent.com/DavissonCoelho/avantlube/main/pagina5.jpg" alt="Página 5">
+                <div class="page-number">5</div>
+            </div>
+            <div class="page" id="page6">
+                <img src="https://raw.githubusercontent.com/DavissonCoelho/avantlube/main/pagina6.jpg" alt="Página 6">
+                <div class="page-number">6</div>
+            </div>
+            <div class="page" id="page7">
+                <img src="https://raw.githubusercontent.com/DavissonCoelho/avantlube/main/pagina7.jpg" alt="Página 7">
+                <div class="page-number">7</div>
+            </div>
+        </div>
+
+        <!-- Controles com gotas de óleo e textos <Prev> e <Next> -->
+        <div class="controls">
+            <button class="nav-button" id="prevPage">
+                <span>&lt;Prev</span>
+                <img src="https://raw.githubusercontent.com/DavissonCoelho/avantlube/main/gotaesquerda.png" alt="Anterior" width="32" height="32">
+            </button>
+            <button class="nav-button" id="nextPage">
+                <img src="https://raw.githubusercontent.com/DavissonCoelho/avantlube/main/gotadireita.png" alt="Próxima" width="32" height="32">
+                <span>Next&gt;</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Áudio para o som de página virando -->
+    <audio id="pageSound">
+        <source src="https://raw.githubusercontent.com/DavissonCoelho/avantlube/main/page-flip-sound.mp3" type="audio/mpeg">
+        Seu navegador não suporta o elemento de áudio.
+    </audio>
+
+    <!-- Biblioteca para gerar PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+    <script>
+        // JavaScript para navegação e efeitos
+        let currentPage = 1;
+        const totalPages = document.querySelectorAll('.page').length;
+        const pageSound = document.getElementById('pageSound');
+
+        function flipPage(direction) {
+            if (
+                (direction === 'next' && currentPage < totalPages) ||
+                (direction === 'prev' && currentPage > 1)
+            ) {
+                const currentPageElement = document.getElementById(`page${currentPage}`);
+                if (!currentPageElement) {
+                    console.error(`Elemento da página ${currentPage} não encontrado.`);
+                    return;
+                }
+                currentPageElement.classList.add('flipping');
+
+                // Toca o som de página virando no meio da animação
+                setTimeout(() => {
+                    if (pageSound) {
+                        pageSound.currentTime = 0; // Reinicia o som
+                        pageSound.play();
+                    }
+                }, 700); // Atraso de 700ms para sincronizar com a animação
+
+                setTimeout(() => {
+                    if (direction === 'next') {
+                        // Vira a página atual para a esquerda
+                        currentPageElement.style.transform = 'rotateY(-180deg)';
+                        currentPage++;
+                    } else {
+                        // Vira a página atual para a direita
+                        currentPageElement.style.transform = 'rotateY(180deg)';
+                        currentPage--;
+                    }
+
+                    // Revela a próxima página
+                    const nextPageElement = document.getElementById(`page${currentPage}`);
+                    if (nextPageElement) {
+                        nextPageElement.style.transform = 'rotateY(0deg)';
+                    } else {
+                        console.error(`Elemento da página ${currentPage} não encontrado.`);
+                    }
+
+                    // Remove a classe de animação
+                    currentPageElement.classList.remove('flipping');
+                }, 1000); // Tempo da animação
+            }
+        }
+
+        // Eventos dos botões
+        document.getElementById('nextPage').addEventListener('click', () => flipPage('next'));
+        document.getElementById('prevPage').addEventListener('click', () => flipPage('prev'));
+
+        // Botão de fechar
+        document.getElementById('closeButton').addEventListener('click', () => {
+            const confirmClose = confirm("Tem certeza que deseja sair?");
+            if (confirmClose) {
+                try {
+                    window.close(); // Tenta fechar a janela/aba
+                } catch (error) {
+                    // Se o navegador bloquear o fechamento, exibe uma mensagem
+                    alert("Por favor, feche a aba/janela manualmente usando o botão de fechar do navegador.");
+                }
+            }
+        });
+
+        // Botão de imprimir
+        document.getElementById('printButton').addEventListener('click', () => {
+            window.print(); // Abre a caixa de diálogo de impressão
+        });
+
+        // Funções de zoom
+        const bookElement = document.getElementById('book');
+        let currentZoom = 1; // Zoom inicial
+
+        document.getElementById('zoomIn').addEventListener('click', () => {
+            if (currentZoom < 2) { // Limite máximo de zoom
+                currentZoom += 0.1;
+                bookElement.style.transform = `scale(${currentZoom})`;
+            }
+        });
+
+        document.getElementById('zoomOut').addEventListener('click', () => {
+            if (currentZoom > 0.5) { // Limite mínimo de zoom
+                currentZoom -= 0.1;
+                bookElement.style.transform = `scale(${currentZoom})`;
+            }
+        });
+
+        // Garante que a página 1 esteja visível inicialmente
+        document.getElementById('page1').style.transform = 'rotateY(0deg)';
+        document.getElementById('page2').style.transform = 'rotateY(180deg)';
+        document.getElementById('page3').style.transform = 'rotateY(180deg)';
+        document.getElementById('page4').style.transform = 'rotateY(180deg)';
+        document.getElementById('page5').style.transform = 'rotateY(180deg)';
+        document.getElementById('page6').style.transform = 'rotateY(180deg)';
+        document.getElementById('page7').style.transform = 'rotateY(180deg)';
+    </script>
+</body>
+</html>
