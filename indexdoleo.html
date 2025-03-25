@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- Política de Segurança Corrigida -->
     <meta http-equiv="Content-Security-Policy" content="
         default-src 'self' https://*.githubusercontent.com;
         script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com;
@@ -273,12 +272,6 @@
                 object-fit: contain !important;
             }
             
-            /* Garante que todas as páginas sejam visíveis */
-            .page:not(.active) {
-                display: block !important;
-                visibility: visible !important;
-            }
-            
             .controls, .close-button, .print-button, .top-controls, .loading-spinner {
                 display: none !important;
             }
@@ -370,6 +363,7 @@
             const totalPages = 7;
             let currentZoom = 1;
             let isAnimating = false;
+            let prePrintState = null;
 
             // Pré-carregar imagens
             function preloadImages() {
@@ -388,6 +382,52 @@
                 
                 Promise.all(promises).then(() => {
                     loadingSpinner.style.display = 'none';
+                });
+            }
+
+            // Função para salvar o estado atual
+            function saveCurrentState() {
+                return {
+                    activePage: currentPage,
+                    pages: Array.from(document.querySelectorAll('.page')).map(page => ({
+                        id: page.id,
+                        transform: page.style.transform,
+                        opacity: page.style.opacity,
+                        display: page.style.display,
+                        visibility: page.style.visibility,
+                        position: page.style.position,
+                        classList: Array.from(page.classList)
+                    }))
+                };
+            }
+
+            // Função para restaurar o estado
+            function restoreState(state) {
+                document.querySelectorAll('.page').forEach(page => {
+                    page.style.display = '';
+                    page.style.visibility = '';
+                    page.style.opacity = '';
+                    page.style.transform = '';
+                    page.style.position = '';
+                    page.classList.remove('active', 'flipping');
+                });
+
+                // Restaura a página ativa
+                const activePage = document.getElementById(`page${state.activePage}`);
+                if (activePage) {
+                    activePage.classList.add('active');
+                    activePage.style.transform = 'rotateY(0deg)';
+                    activePage.style.opacity = '1';
+                }
+
+                // Restaura as outras páginas
+                state.pages.forEach(pageState => {
+                    const page = document.getElementById(pageState.id);
+                    if (page && !page.classList.contains('active')) {
+                        page.style.transform = pageState.transform || 'rotateY(180deg)';
+                        page.style.opacity = pageState.opacity || '0';
+                        pageState.classList.forEach(cls => page.classList.add(cls));
+                    }
                 });
             }
 
@@ -473,7 +513,10 @@
 
             if (printButton) {
                 printButton.addEventListener('click', () => {
-                    // Força todas as páginas visíveis antes de imprimir
+                    // Salva o estado atual antes da impressão
+                    prePrintState = saveCurrentState();
+
+                    // Força todas as páginas visíveis para impressão
                     document.querySelectorAll('.page').forEach(page => {
                         page.style.display = 'block';
                         page.style.visibility = 'visible';
@@ -481,7 +524,17 @@
                         page.style.transform = 'none';
                         page.style.position = 'static';
                     });
-                    
+
+                    // Adiciona listener para após a impressão
+                    const afterPrintHandler = () => {
+                        if (prePrintState) {
+                            restoreState(prePrintState);
+                            prePrintState = null;
+                        }
+                        window.removeEventListener('afterprint', afterPrintHandler);
+                    };
+                    window.addEventListener('afterprint', afterPrintHandler);
+
                     setTimeout(() => {
                         window.print();
                     }, 100);
