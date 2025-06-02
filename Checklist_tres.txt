@@ -1,0 +1,6 @@
+Documentação e Histórico;CRLV em dia sem restrições X, Multas pendentes, Histórico de acidentes consultado, IPVA e licenciamento em dia
+Exterior do Veículo;Lataria sem amassados ou repintura,Portas e porta-malas alinhados,Vidros sem rachaduras,Faróis e lanternas funcionando,Pneus com sulcos adequados
+Parte Inferior;Sem vazamentos de óleo ou fluidos,Suspensão em bom estado,Sem corrosão ou soldas irregulares,Cano de escape sem furos
+Motor e Componentes Mecânicos;Óleo do motor com cor adequada,Correias sem rachaduras,Bateria em bom estado,Sem ruídos anormais ao ligar
+Test Drive;Direção alinhada,Freios sem vibração ou ruídos,Câmbio com trocas suaves,Aceleração sem falhas
+Interior do Veículo;Estofados em bom estado,Painel sem luzes de alerta,Ar-condicionado funcionando,Acessórios elétricos operando
