@@ -752,33 +752,45 @@
                 const ano = document.getElementById('ano').value;
                 const observacoes = document.getElementById('observacoes').value;
                 
-                let yPos = 10;
+                // Configurações iniciais do PDF
                 pdf.setFontSize(16);
-                pdf.text('EasyLift Checklist PRO DIY', 105, yPos, { align: 'center' });
-                yPos += 10;
+                pdf.setFont(undefined, 'bold');
+                pdf.text('EasyLift Checklist PRO DIY', 105, 15, { align: 'center' });
                 
                 pdf.setFontSize(12);
-                pdf.text(`Data: ${data}`, 14, yPos);
-                pdf.text(`Placa: ${placaFormatada}`, 105, yPos, { align: 'center' });
-                pdf.text(`Nome: ${nome}`, 180, yPos, { align: 'right' });
-                yPos += 7;
+                pdf.setFont(undefined, 'normal');
                 
-                pdf.text(`Modelo: ${modelo || 'Não informado'}`, 14, yPos);
-                pdf.text(`Ano: ${ano || 'Não informado'}`, 180, yPos, { align: 'right' });
-                yPos += 10;
+                // Informações do veículo em duas colunas
+                let yPos = 30;
                 
+                // Coluna esquerda
+                pdf.text(`Data: ${data}`, 15, yPos);
+                pdf.text(`Nome: ${nome}`, 15, yPos + 7);
+                pdf.text(`Modelo: ${modelo || 'Não informado'}`, 15, yPos + 14);
+                
+                // Coluna direita
+                pdf.text(`Placa: ${placaFormatada}`, 105, yPos);
+                pdf.text(`Ano: ${ano || 'Não informado'}`, 105, yPos + 7);
+                
+                yPos += 21;
+                
+                // Observações (se houver)
                 if (observacoes) {
-                    const observacoesLines = pdf.splitTextToSize(`Observações: ${observacoes}`, 180);
-                    pdf.text(observacoesLines, 14, yPos);
-                    yPos += (observacoesLines.length * 5) + 5;
+                    pdf.text('Observações:', 15, yPos);
+                    yPos += 7;
+                    
+                    const observacoesLines = pdf.splitTextToSize(observacoes, 180);
+                    pdf.text(observacoesLines, 15, yPos);
+                    yPos += (observacoesLines.length * 5) + 10;
                 } else {
-                    yPos += 5;
+                    yPos += 10;
                 }
                 
                 // Adicionar uma linha divisória
-                pdf.line(10, yPos, 200, yPos);
+                pdf.line(15, yPos, 195, yPos);
                 yPos += 15;
                 
+                // Processar fotos para redimensionamento
                 const photoProcessing = [];
                 for (const previewId in photoData) {
                     if (photoData.hasOwnProperty(previewId)) {
@@ -795,6 +807,7 @@
                 
                 await Promise.all(photoProcessing);
                 
+                // Substituir imagens originais pelas redimensionadas temporariamente
                 const originalImages = {};
                 for (const previewId in photoData) {
                     if (photoData.hasOwnProperty(previewId)) {
@@ -811,13 +824,14 @@
                     }
                 }
                 
+                // Capturar cada seção do checklist como imagem
                 const sections = document.querySelectorAll('.checklist-section');
-                const pageHeight = pdf.internal.pageSize.getHeight() - 20;
+                const pageHeight = pdf.internal.pageSize.getHeight();
                 
                 for (let i = 0; i < sections.length; i++) {
                     if (i > 0) {
                         pdf.addPage();
-                        yPos = 10;
+                        yPos = 15;
                     }
                     
                     const canvas = await html2canvas(sections[i], {
@@ -829,16 +843,23 @@
                     });
                     
                     const imgData = canvas.toDataURL('image/jpeg', 0.9);
-                    const imgWidth = pdf.internal.pageSize.getWidth() - 20;
+                    const imgWidth = pdf.internal.pageSize.getWidth() - 30;
                     const imgHeight = (canvas.height * imgWidth) / canvas.width;
                     
-                    const adjustedHeight = Math.min(imgHeight, pageHeight - yPos);
+                    // Verificar se a imagem cabe na página atual
+                    if (yPos + imgHeight > pageHeight - 20) {
+                        pdf.addPage();
+                        yPos = 15;
+                    }
                     
-                    pdf.addImage(imgData, 'JPEG', 10, yPos, imgWidth, adjustedHeight);
+                    pdf.addImage(imgData, 'JPEG', 15, yPos, imgWidth, imgHeight);
+                    yPos += imgHeight + 10;
                 }
                 
+                // Nome do arquivo PDF com placa e data
                 pdf.save('Checklist_Veicular_' + placaFormatada.replace('-', '') + '_' + new Date().toISOString().slice(0, 10) + '.pdf');
                 
+                // Restaurar imagens originais
                 for (const previewId in originalImages) {
                     if (originalImages.hasOwnProperty(previewId)) {
                         document.getElementById(previewId).innerHTML = originalImages[previewId];
