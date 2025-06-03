@@ -505,6 +505,7 @@
                             fileInput.id = `photo-${itemId}`;
                             fileInput.className = 'file-input';
                             fileInput.accept = 'image/*';
+                            fileInput.capture = 'environment'; // Prioriza a câmera
                             fileInput.multiple = true;
                             fileInput.onchange = function() {
                                 handlePhotoUpload(this, `${itemId}-preview`);
@@ -529,6 +530,97 @@
                 }
             };
             reader.readAsText(file);
+        }
+
+        // Função para processar os arquivos selecionados (fotos)
+        function processSelectedFiles(files, previewId, input) {
+            const preview = document.getElementById(previewId);
+            const uploadBtn = input.previousElementSibling.previousElementSibling;
+            
+            const existingPhotos = photoData[previewId] || [];
+            const newPhotos = Array.from(files).slice(0, 2 - existingPhotos.length);
+            
+            if (newPhotos.length === 0) {
+                alert('Você já atingiu o limite de 2 fotos para este item!');
+                input.value = '';
+                return;
+            }
+            
+            for (let file of newPhotos) {
+                if (file.size > 1048576) {
+                    alert('Cada foto deve ter no máximo 1MB!');
+                    input.value = '';
+                    return;
+                }
+            }
+            
+            if (!photoData[previewId]) photoData[previewId] = [];
+            
+            let processed = 0;
+            newPhotos.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    photoData[previewId].push({
+                        name: file.name,
+                        data: e.target.result,
+                        file: file
+                    });
+                    
+                    processed++;
+                    
+                    if (processed === newPhotos.length) {
+                        updatePhotoPreview(previewId);
+                        uploadBtn.textContent = `Adicionar Fotos (${photoData[previewId].length}/2)`;
+                        // Limpar o input para permitir nova seleção
+                        input.value = '';
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Função para lidar com upload de fotos (câmera ou galeria)
+        function handlePhotoUpload(input, previewId) {
+            // Verificar se o input tem arquivos (pode não ter se veio da câmera)
+            if (input.files && input.files.length > 0) {
+                processSelectedFiles(input.files, previewId, input);
+            } else {
+                // Para dispositivos móveis que não atualizam o input.files imediatamente
+                input.addEventListener('change', function() {
+                    if (this.files && this.files.length > 0) {
+                        processSelectedFiles(this.files, previewId, this);
+                    }
+                }, {once: true});
+            }
+        }
+
+        // Função para atualizar a visualização das fotos
+        function updatePhotoPreview(previewId) {
+            const preview = document.getElementById(previewId);
+            preview.innerHTML = '';
+            
+            if (photoData[previewId] && photoData[previewId].length > 0) {
+                photoData[previewId].forEach((photo, index) => {
+                    const thumb = document.createElement('div');
+                    thumb.className = 'photo-thumbnail';
+                    thumb.innerHTML = `
+                        <img src="${photo.data}" alt="Foto ${index+1}">
+                        <button class="delete-photo" onclick="deletePhoto('${previewId}', ${index})">×</button>
+                    `;
+                    preview.appendChild(thumb);
+                });
+            }
+        }
+
+        // Função para deletar foto
+        function deletePhoto(previewId, index) {
+            photoData[previewId].splice(index, 1);
+            const uploadBtn = document.querySelector(`#${previewId}`).previousElementSibling.previousElementSibling;
+            uploadBtn.textContent = `Adicionar Fotos (${photoData[previewId].length}/2)`;
+            updatePhotoPreview(previewId);
+            
+            const fileInput = document.querySelector(`input[onchange*="${previewId}"]`);
+            fileInput.value = '';
         }
 
         // Função para decodificar QR Code
@@ -610,79 +702,6 @@
                 listContainer.innerHTML = `<p>Erro ao carregar listas: ${error.message}</p>`;
                 console.error("Erro ao carregar checklists remotos:", error);
             }
-        }
-
-        // Funções para manipulação de fotos
-        function handlePhotoUpload(input, previewId) {
-            const files = Array.from(input.files);
-            const preview = document.getElementById(previewId);
-            const uploadBtn = input.previousElementSibling.previousElementSibling;
-            
-            const existingPhotos = photoData[previewId] || [];
-            const newPhotos = files.slice(0, 2 - existingPhotos.length);
-            
-            if (newPhotos.length === 0) {
-                alert('Você já atingiu o limite de 2 fotos para este item!');
-                input.value = '';
-                return;
-            }
-            
-            for (let file of newPhotos) {
-                if (file.size > 1048576) {
-                    alert('Cada foto deve ter no máximo 1MB!');
-                    input.value = '';
-                    return;
-                }
-            }
-            
-            if (!photoData[previewId]) photoData[previewId] = [];
-            
-            let processed = 0;
-            newPhotos.forEach((file, index) => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    photoData[previewId].push({
-                        name: file.name,
-                        data: e.target.result,
-                        file: file
-                    });
-                    
-                    processed++;
-                    
-                    if (processed === newPhotos.length) {
-                        updatePhotoPreview(previewId);
-                        uploadBtn.textContent = `Adicionar Fotos (${photoData[previewId].length}/2)`;
-                    }
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        function updatePhotoPreview(previewId) {
-            const preview = document.getElementById(previewId);
-            preview.innerHTML = '';
-            
-            if (photoData[previewId] && photoData[previewId].length > 0) {
-                photoData[previewId].forEach((photo, index) => {
-                    const thumb = document.createElement('div');
-                    thumb.className = 'photo-thumbnail';
-                    thumb.innerHTML = `
-                        <img src="${photo.data}" alt="Foto ${index+1}">
-                        <button class="delete-photo" onclick="deletePhoto('${previewId}', ${index})">×</button>
-                    `;
-                    preview.appendChild(thumb);
-                });
-            }
-        }
-
-        function deletePhoto(previewId, index) {
-            photoData[previewId].splice(index, 1);
-            const uploadBtn = document.querySelector(`#${previewId}`).previousElementSibling.previousElementSibling;
-            uploadBtn.textContent = `Adicionar Fotos (${photoData[previewId].length}/2)`;
-            updatePhotoPreview(previewId);
-            
-            const fileInput = document.querySelector(`input[onchange*="${previewId}"]`);
-            fileInput.value = '';
         }
 
         // Função para redimensionar imagens
