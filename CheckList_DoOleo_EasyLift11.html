@@ -33,6 +33,47 @@
             margin: 0;
             font-size: 24px;
         }
+        .info-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .info-section h2 {
+            color: #2c3e50;
+            border-bottom: 2px solid #3498db;
+            padding-bottom: 5px;
+            margin-top: 0;
+        }
+        .info-form {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .form-group input, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .form-group textarea {
+            min-height: 60px;
+            resize: vertical;
+        }
+        .form-group.full-width {
+            grid-column: span 2;
+        }
         .checklist-section {
             background: white;
             padding: 20px;
@@ -269,14 +310,55 @@
         .remote-checklist-item:hover {
             background-color: #f5f5f5;
         }
+        .error {
+            border-color: #e74c3c !important;
+        }
+        .error-message {
+            color: #e74c3c;
+            font-size: 12px;
+            margin-top: 5px;
+            display: none;
+        }
     </style>
 </head>
 <body>
     <div class="header">
-        <!-- Imagem removida para evitar erro 404 -->
+        <img src="ideiadelogo.PNG" alt="Logo EasyLift Checklist PRO DIY">
         <div class="header-text">
             <h1>EasyLift Checklist PRO DIY</h1>
             <p>Inspeção Completa de Veículos</p>
+        </div>
+    </div>
+
+    <div class="info-section">
+        <h2>Informações do Veículo</h2>
+        <div class="info-form">
+            <div class="form-group">
+                <label for="data">Data:</label>
+                <input type="text" id="data" placeholder="dd/mm/yyyy hh:mm:ss">
+            </div>
+            <div class="form-group">
+                <label for="placa">Placa Veículo: <span style="color:red">*</span></label>
+                <input type="text" id="placa" placeholder="XXX-XXXX" maxlength="8" required>
+                <div class="error-message" id="placa-error">Preenchimento obrigatório no formato XXX-XXXX</div>
+            </div>
+            <div class="form-group">
+                <label for="nome">Nome:</label>
+                <input type="text" id="nome" placeholder="Nome do proprietário">
+            </div>
+            <div class="form-group">
+                <label for="modelo">Modelo:</label>
+                <input type="text" id="modelo" placeholder="Modelo do veículo" maxlength="100">
+            </div>
+            <div class="form-group">
+                <label for="ano">Ano:</label>
+                <input type="text" id="ano" placeholder="YYYY" maxlength="4">
+            </div>
+            <div class="form-group full-width">
+                <label for="observacoes">Observações:</label>
+                <textarea id="observacoes" placeholder="Observações adicionais" maxlength="200"></textarea>
+                <div class="photo-counter">Máximo 200 caracteres</div>
+            </div>
         </div>
     </div>
 
@@ -311,6 +393,38 @@
     <script>
         // Sistema de Fotos
         const photoData = {};
+
+        // Função para formatar a data atual
+        function formatarDataAtual() {
+            const now = new Date();
+            const dia = String(now.getDate()).padStart(2, '0');
+            const mes = String(now.getMonth() + 1).padStart(2, '0');
+            const ano = now.getFullYear();
+            const horas = String(now.getHours()).padStart(2, '0');
+            const minutos = String(now.getMinutes()).padStart(2, '0');
+            const segundos = String(now.getSeconds()).padStart(2, '0');
+            
+            return `${dia}/${mes}/${ano} ${horas}:${minutos}:${segundos}`;
+        }
+
+        // Função para validar placa no formato XXX-XXXX
+        function validarPlaca(placa) {
+            const regex = /^[A-Za-z]{3}-?\d{4}$/;
+            return regex.test(placa);
+        }
+
+        // Função para formatar placa no padrão XXX-XXXX
+        function formatarPlaca(placa) {
+            // Remove qualquer hífen existente e converte para maiúsculas
+            placa = placa.replace(/-/g, '').toUpperCase();
+            
+            // Insere o hífen na posição correta se necessário
+            if (placa.length > 3) {
+                placa = placa.substring(0, 3) + '-' + placa.substring(3);
+            }
+            
+            return placa;
+        }
 
         // Função para processar o arquivo TXT
         function processChecklistFile(file) {
@@ -421,7 +535,7 @@
         async function decodeQRCode(imageFile) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = async function(e) {
                     const img = new Image();
                     img.src = e.target.result;
                     
@@ -446,7 +560,7 @@
             });
         }
 
-        // Função para carregar checklists remotos
+        // FUNÇÃO CORRIGIDA - Carrega TODOS os arquivos checklist_*.txt do GitHub
         async function loadRemoteChecklists() {
             const modal = document.getElementById('remoteModal');
             const listContainer = document.getElementById('remote-checklist-list');
@@ -458,9 +572,9 @@
                 const response = await fetch('https://api.github.com/repos/doleosorocaba/Apresentacao/contents/');
                 const files = await response.json();
                 
+                // Filtro corrigido com expressão regular para pegar TODOS os arquivos
                 const checklists = files.filter(file => 
-                    file.name.toLowerCase().startsWith('checklist_') && 
-                    file.name.toLowerCase().endsWith('.txt') && 
+                    /^checklist_.*\.txt$/i.test(file.name) && 
                     file.type === 'file'
                 );
                 
@@ -474,10 +588,10 @@
                     const item = document.createElement('div');
                     item.className = 'remote-checklist-item';
                     
-                    const displayName = file.name
-                        .replace(/^checklist_/, '')
-                        .replace(/\.txt$/i, '')
-                        .replace(/_/g, ' ');
+                    // Formata o nome para exibição (remove prefixo/sufixo)
+                    const displayName = file.name.replace(/^checklist_/, '')
+                                               .replace(/\.txt$/, '')
+                                               .replace(/_/g, ' ');
                     
                     item.textContent = displayName;
                     item.onclick = async () => {
@@ -513,27 +627,23 @@
                 return;
             }
             
+            for (let file of newPhotos) {
+                if (file.size > 1048576) {
+                    alert('Cada foto deve ter no máximo 1MB!');
+                    input.value = '';
+                    return;
+                }
+            }
+            
             if (!photoData[previewId]) photoData[previewId] = [];
             
             let processed = 0;
             newPhotos.forEach((file, index) => {
                 const reader = new FileReader();
-                reader.onload = async function(e) {
-                    let imageData = e.target.result;
-                    
-                    if (file.size > 1048576) {
-                        try {
-                            imageData = await resizeImageToMaxSize(imageData, 1048576);
-                        } catch (error) {
-                            console.error("Erro ao redimensionar imagem:", error);
-                            alert("Erro ao processar a imagem. Por favor, tente outra.");
-                            return;
-                        }
-                    }
-                    
+                reader.onload = function(e) {
                     photoData[previewId].push({
                         name: file.name,
-                        data: imageData,
+                        data: e.target.result,
                         file: file
                     });
                     
@@ -546,43 +656,6 @@
                 };
                 reader.readAsDataURL(file);
             });
-        }
-
-        // Função para redimensionar imagem para um tamanho máximo em bytes
-        async function resizeImageToMaxSize(imageDataUrl, maxSizeBytes, quality = 0.8) {
-            let qualityLevel = quality;
-            let resizedDataUrl = imageDataUrl;
-            
-            if (dataURItoBlob(imageDataUrl).size <= maxSizeBytes) {
-                return imageDataUrl;
-            }
-            
-            while (qualityLevel > 0.1) {
-                resizedDataUrl = await resizeImage(imageDataUrl, 1024, 1024, qualityLevel);
-                const blob = dataURItoBlob(resizedDataUrl);
-                
-                if (blob.size <= maxSizeBytes) {
-                    return resizedDataUrl;
-                }
-                
-                qualityLevel -= 0.1;
-            }
-            
-            return resizedDataUrl;
-        }
-
-        // Função auxiliar para converter DataURL para Blob
-        function dataURItoBlob(dataURI) {
-            const byteString = atob(dataURI.split(',')[1]);
-            const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
-            const ab = new ArrayBuffer(byteString.length);
-            const ia = new Uint8Array(ab);
-            
-            for (let i = 0; i < byteString.length; i++) {
-                ia[i] = byteString.charCodeAt(i);
-            }
-            
-            return new Blob([ab], { type: mimeString });
         }
 
         function updatePhotoPreview(previewId) {
@@ -646,6 +719,17 @@
 
         // Gerador de PDF
         async function generatePDF() {
+            // Validar placa antes de gerar o PDF
+            const placaInput = document.getElementById('placa');
+            const placa = placaInput.value.trim();
+            
+            if (!placa || !validarPlaca(placa)) {
+                placaInput.classList.add('error');
+                document.getElementById('placa-error').style.display = 'block';
+                placaInput.focus();
+                return;
+            }
+            
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('p', 'mm', 'a4');
             
@@ -660,12 +744,47 @@
                 buttons.style.display = 'none';
                 deleteButtons.forEach(btn => btn.style.visibility = 'hidden');
                 
+                // Adicionar informações do cabeçalho ao PDF
+                const data = document.getElementById('data').value || formatarDataAtual();
+                const placaFormatada = formatarPlaca(placa);
+                const nome = document.getElementById('nome').value || placaFormatada;
+                const modelo = document.getElementById('modelo').value;
+                const ano = document.getElementById('ano').value;
+                const observacoes = document.getElementById('observacoes').value;
+                
+                let yPos = 10;
+                pdf.setFontSize(16);
+                pdf.text('EasyLift Checklist PRO DIY', 105, yPos, { align: 'center' });
+                yPos += 10;
+                
+                pdf.setFontSize(12);
+                pdf.text(`Data: ${data}`, 14, yPos);
+                pdf.text(`Placa: ${placaFormatada}`, 105, yPos, { align: 'center' });
+                pdf.text(`Nome: ${nome}`, 180, yPos, { align: 'right' });
+                yPos += 7;
+                
+                pdf.text(`Modelo: ${modelo || 'Não informado'}`, 14, yPos);
+                pdf.text(`Ano: ${ano || 'Não informado'}`, 180, yPos, { align: 'right' });
+                yPos += 10;
+                
+                if (observacoes) {
+                    const observacoesLines = pdf.splitTextToSize(`Observações: ${observacoes}`, 180);
+                    pdf.text(observacoesLines, 14, yPos);
+                    yPos += (observacoesLines.length * 5) + 5;
+                } else {
+                    yPos += 5;
+                }
+                
+                // Adicionar uma linha divisória
+                pdf.line(10, yPos, 200, yPos);
+                yPos += 15;
+                
                 const photoProcessing = [];
                 for (const previewId in photoData) {
                     if (photoData.hasOwnProperty(previewId)) {
                         for (let i = 0; i < photoData[previewId].length; i++) {
                             photoProcessing.push(
-                                resizeImageToMaxSize(photoData[previewId][i].data, 1048576)
+                                resizeImage(photoData[previewId][i].data, 800, 600)
                                     .then(resized => {
                                         photoData[previewId][i].resizedData = resized;
                                     })
@@ -698,6 +817,7 @@
                 for (let i = 0; i < sections.length; i++) {
                     if (i > 0) {
                         pdf.addPage();
+                        yPos = 10;
                     }
                     
                     const canvas = await html2canvas(sections[i], {
@@ -712,56 +832,12 @@
                     const imgWidth = pdf.internal.pageSize.getWidth() - 20;
                     const imgHeight = (canvas.height * imgWidth) / canvas.width;
                     
-                    const adjustedHeight = Math.min(imgHeight, pageHeight);
+                    const adjustedHeight = Math.min(imgHeight, pageHeight - yPos);
                     
-                    pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, adjustedHeight);
+                    pdf.addImage(imgData, 'JPEG', 10, yPos, imgWidth, adjustedHeight);
                 }
                 
-                let hasPhotos = false;
-                for (const previewId in photoData) {
-                    if (photoData[previewId] && photoData[previewId].length > 0) {
-                        hasPhotos = true;
-                        break;
-                    }
-                }
-                
-                if (hasPhotos) {
-                    pdf.addPage();
-                    pdf.setFontSize(16);
-                    pdf.text('Fotos Anexadas', 105, 15, { align: 'center' });
-                    
-                    let yPosition = 30;
-                    let xPosition = 10;
-                    const imgWidth = (pdf.internal.pageSize.getWidth() - 30) / 2;
-                    const imgHeight = imgWidth * 0.75;
-                    
-                    for (const previewId in photoData) {
-                        if (photoData.hasOwnProperty(previewId)) {
-                            for (let i = 0; i < photoData[previewId].length; i++) {
-                                const photo = photoData[previewId][i];
-                                
-                                if (yPosition + imgHeight > pdf.internal.pageSize.getHeight() - 20) {
-                                    pdf.addPage();
-                                    yPosition = 20;
-                                    xPosition = 10;
-                                }
-                                
-                                pdf.addImage(photo.resizedData || photo.data, 'JPEG', xPosition, yPosition, imgWidth, imgHeight);
-                                pdf.setFontSize(10);
-                                pdf.text(`Foto ${i+1}: ${photo.name.substring(0, 20)}...`, xPosition + 5, yPosition + imgHeight + 5);
-                                
-                                if (xPosition === 10) {
-                                    xPosition += imgWidth + 10;
-                                } else {
-                                    xPosition = 10;
-                                    yPosition += imgHeight + 20;
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                pdf.save('Checklist_Veicular_' + new Date().toISOString().slice(0, 10) + '.pdf');
+                pdf.save('Checklist_Veicular_' + placaFormatada.replace('-', '') + '_' + new Date().toISOString().slice(0, 10) + '.pdf');
                 
                 for (const previewId in originalImages) {
                     if (originalImages.hasOwnProperty(previewId)) {
@@ -783,6 +859,33 @@
 
         // Inicialização
         document.addEventListener('DOMContentLoaded', function() {
+            // Preencher data atual automaticamente
+            document.getElementById('data').value = formatarDataAtual();
+            
+            // Configurar validação da placa
+            const placaInput = document.getElementById('placa');
+            placaInput.addEventListener('input', function(e) {
+                // Formatar automaticamente (XXX-XXXX)
+                let value = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
+                if (value.length > 3) {
+                    value = value.substring(0, 3) + '-' + value.substring(3, 7);
+                }
+                e.target.value = value;
+                
+                // Remover mensagem de erro se válida
+                if (validarPlaca(value)) {
+                    e.target.classList.remove('error');
+                    document.getElementById('placa-error').style.display = 'none';
+                }
+            });
+            
+            // Preencher nome com a placa se estiver vazio ao perder o foco
+            document.getElementById('nome').addEventListener('blur', function(e) {
+                if (!e.target.value.trim() && placaInput.value.trim()) {
+                    e.target.value = placaInput.value.trim();
+                }
+            });
+            
             // Configurar o botão de carregar checklist local
             document.getElementById('load-checklist').addEventListener('click', function() {
                 document.getElementById('file-input').click();
@@ -838,6 +941,18 @@
                     document.querySelectorAll('.photo-preview').forEach(p => p.innerHTML = '');
                     document.querySelectorAll('.upload-btn').forEach(b => b.textContent = 'Adicionar Fotos (0/2)');
                     Object.keys(photoData).forEach(key => photoData[key] = []);
+                    
+                    // Limpar informações do veículo, exceto data
+                    document.getElementById('placa').value = '';
+                    document.getElementById('nome').value = '';
+                    document.getElementById('modelo').value = '';
+                    document.getElementById('ano').value = '';
+                    document.getElementById('observacoes').value = '';
+                    document.getElementById('data').value = formatarDataAtual();
+                    
+                    // Remover erros de validação
+                    document.getElementById('placa').classList.remove('error');
+                    document.getElementById('placa-error').style.display = 'none';
                 }
             });
             
