@@ -426,6 +426,106 @@
             return placa;
         }
 
+        // Função para criar inputs de arquivo com tratamento especial para câmera
+        function createPhotoInput(itemId) {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.id = `photo-${itemId}`;
+            fileInput.className = 'file-input';
+            fileInput.accept = 'image/*';
+            fileInput.capture = 'environment'; // Prioriza a câmera traseira
+            fileInput.multiple = true;
+            
+            // Resetar o valor quando clicado para garantir que o evento change seja disparado
+            fileInput.onclick = function() {
+                this.value = '';
+            };
+            
+            fileInput.addEventListener('change', function() {
+                if (this.files && this.files.length > 0) {
+                    processSelectedFiles(this.files, `${itemId}-preview`, this);
+                }
+            });
+            
+            return fileInput;
+        }
+
+        // Função para processar os arquivos selecionados (fotos)
+        function processSelectedFiles(files, previewId, input) {
+            const preview = document.getElementById(previewId);
+            const uploadBtn = input.previousElementSibling.previousElementSibling;
+            
+            const existingPhotos = photoData[previewId] || [];
+            const newPhotos = Array.from(files).slice(0, 2 - existingPhotos.length);
+            
+            if (newPhotos.length === 0) {
+                alert('Você já atingiu o limite de 2 fotos para este item!');
+                input.value = '';
+                return;
+            }
+            
+            for (let file of newPhotos) {
+                if (file.size > 1048576) {
+                    alert('Cada foto deve ter no máximo 1MB!');
+                    input.value = '';
+                    return;
+                }
+            }
+            
+            if (!photoData[previewId]) photoData[previewId] = [];
+            
+            let processed = 0;
+            newPhotos.forEach((file, index) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    photoData[previewId].push({
+                        name: file.name,
+                        data: e.target.result,
+                        file: file
+                    });
+                    
+                    processed++;
+                    
+                    if (processed === newPhotos.length) {
+                        updatePhotoPreview(previewId);
+                        uploadBtn.textContent = `Adicionar Fotos (${photoData[previewId].length}/2)`;
+                        // Limpar o input para permitir nova seleção
+                        input.value = '';
+                    }
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Função para atualizar a visualização das fotos
+        function updatePhotoPreview(previewId) {
+            const preview = document.getElementById(previewId);
+            preview.innerHTML = '';
+            
+            if (photoData[previewId] && photoData[previewId].length > 0) {
+                photoData[previewId].forEach((photo, index) => {
+                    const thumb = document.createElement('div');
+                    thumb.className = 'photo-thumbnail';
+                    thumb.innerHTML = `
+                        <img src="${photo.data}" alt="Foto ${index+1}">
+                        <button class="delete-photo" onclick="deletePhoto('${previewId}', ${index})">×</button>
+                    `;
+                    preview.appendChild(thumb);
+                });
+            }
+        }
+
+        // Função para deletar foto
+        function deletePhoto(previewId, index) {
+            photoData[previewId].splice(index, 1);
+            const uploadBtn = document.querySelector(`#${previewId}`).previousElementSibling.previousElementSibling;
+            uploadBtn.textContent = `Adicionar Fotos (${photoData[previewId].length}/2)`;
+            updatePhotoPreview(previewId);
+            
+            const fileInput = document.querySelector(`input[onchange*="${previewId}"]`);
+            fileInput.value = '';
+        }
+
         // Função para processar o arquivo TXT
         function processChecklistFile(file) {
             const reader = new FileReader();
@@ -483,7 +583,7 @@
                             notesDiv.appendChild(textarea);
                             itemDiv.appendChild(notesDiv);
                             
-                            // Upload de fotos
+                            // Upload de fotos - usando a nova função createPhotoInput
                             const photoDiv = document.createElement('div');
                             photoDiv.className = 'photo-upload';
                             
@@ -500,16 +600,8 @@
                             counterSpan.textContent = 'Máx. 2 fotos (1MB cada)';
                             photoDiv.appendChild(counterSpan);
                             
-                            const fileInput = document.createElement('input');
-                            fileInput.type = 'file';
-                            fileInput.id = `photo-${itemId}`;
-                            fileInput.className = 'file-input';
-                            fileInput.accept = 'image/*';
-                            fileInput.capture = 'environment'; // Prioriza a câmera
-                            fileInput.multiple = true;
-                            fileInput.onchange = function() {
-                                handlePhotoUpload(this, `${itemId}-preview`);
-                            };
+                            // Usar a nova função para criar o input de foto
+                            const fileInput = createPhotoInput(itemId);
                             photoDiv.appendChild(fileInput);
                             
                             const previewDiv = document.createElement('div');
@@ -530,97 +622,6 @@
                 }
             };
             reader.readAsText(file);
-        }
-
-        // Função para processar os arquivos selecionados (fotos)
-        function processSelectedFiles(files, previewId, input) {
-            const preview = document.getElementById(previewId);
-            const uploadBtn = input.previousElementSibling.previousElementSibling;
-            
-            const existingPhotos = photoData[previewId] || [];
-            const newPhotos = Array.from(files).slice(0, 2 - existingPhotos.length);
-            
-            if (newPhotos.length === 0) {
-                alert('Você já atingiu o limite de 2 fotos para este item!');
-                input.value = '';
-                return;
-            }
-            
-            for (let file of newPhotos) {
-                if (file.size > 1048576) {
-                    alert('Cada foto deve ter no máximo 1MB!');
-                    input.value = '';
-                    return;
-                }
-            }
-            
-            if (!photoData[previewId]) photoData[previewId] = [];
-            
-            let processed = 0;
-            newPhotos.forEach((file, index) => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    photoData[previewId].push({
-                        name: file.name,
-                        data: e.target.result,
-                        file: file
-                    });
-                    
-                    processed++;
-                    
-                    if (processed === newPhotos.length) {
-                        updatePhotoPreview(previewId);
-                        uploadBtn.textContent = `Adicionar Fotos (${photoData[previewId].length}/2)`;
-                        // Limpar o input para permitir nova seleção
-                        input.value = '';
-                    }
-                };
-                reader.readAsDataURL(file);
-            });
-        }
-
-        // Função para lidar com upload de fotos (câmera ou galeria)
-        function handlePhotoUpload(input, previewId) {
-            // Verificar se o input tem arquivos (pode não ter se veio da câmera)
-            if (input.files && input.files.length > 0) {
-                processSelectedFiles(input.files, previewId, input);
-            } else {
-                // Para dispositivos móveis que não atualizam o input.files imediatamente
-                input.addEventListener('change', function() {
-                    if (this.files && this.files.length > 0) {
-                        processSelectedFiles(this.files, previewId, this);
-                    }
-                }, {once: true});
-            }
-        }
-
-        // Função para atualizar a visualização das fotos
-        function updatePhotoPreview(previewId) {
-            const preview = document.getElementById(previewId);
-            preview.innerHTML = '';
-            
-            if (photoData[previewId] && photoData[previewId].length > 0) {
-                photoData[previewId].forEach((photo, index) => {
-                    const thumb = document.createElement('div');
-                    thumb.className = 'photo-thumbnail';
-                    thumb.innerHTML = `
-                        <img src="${photo.data}" alt="Foto ${index+1}">
-                        <button class="delete-photo" onclick="deletePhoto('${previewId}', ${index})">×</button>
-                    `;
-                    preview.appendChild(thumb);
-                });
-            }
-        }
-
-        // Função para deletar foto
-        function deletePhoto(previewId, index) {
-            photoData[previewId].splice(index, 1);
-            const uploadBtn = document.querySelector(`#${previewId}`).previousElementSibling.previousElementSibling;
-            uploadBtn.textContent = `Adicionar Fotos (${photoData[previewId].length}/2)`;
-            updatePhotoPreview(previewId);
-            
-            const fileInput = document.querySelector(`input[onchange*="${previewId}"]`);
-            fileInput.value = '';
         }
 
         // Função para decodificar QR Code
@@ -652,7 +653,7 @@
             });
         }
 
-        // FUNÇÃO CORRIGIDA - Carrega TODOS os arquivos checklist_*.txt do GitHub
+        // Carrega TODOS os arquivos checklist_*.txt do GitHub
         async function loadRemoteChecklists() {
             const modal = document.getElementById('remoteModal');
             const listContainer = document.getElementById('remote-checklist-list');
@@ -664,7 +665,6 @@
                 const response = await fetch('https://api.github.com/repos/doleosorocaba/Apresentacao/contents/');
                 const files = await response.json();
                 
-                // Filtro corrigido com expressão regular para pegar TODOS os arquivos
                 const checklists = files.filter(file => 
                     /^checklist_.*\.txt$/i.test(file.name) && 
                     file.type === 'file'
@@ -680,7 +680,6 @@
                     const item = document.createElement('div');
                     item.className = 'remote-checklist-item';
                     
-                    // Formata o nome para exibição (remove prefixo/sufixo)
                     const displayName = file.name.replace(/^checklist_/, '')
                                                .replace(/\.txt$/, '')
                                                .replace(/_/g, ' ');
