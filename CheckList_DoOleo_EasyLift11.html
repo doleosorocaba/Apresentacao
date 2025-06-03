@@ -273,7 +273,7 @@
 </head>
 <body>
     <div class="header">
-        <img src="ideiadelogo.PNG" alt="Logo EasyLift Checklist PRO DIY">
+        <!-- Imagem removida para evitar erro 404 -->
         <div class="header-text">
             <h1>EasyLift Checklist PRO DIY</h1>
             <p>Inspeção Completa de Veículos</p>
@@ -421,7 +421,7 @@
         async function decodeQRCode(imageFile) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
-                reader.onload = async function(e) {
+                reader.onload = function(e) {
                     const img = new Image();
                     img.src = e.target.result;
                     
@@ -446,7 +446,7 @@
             });
         }
 
-        // FUNÇÃO CORRIGIDA - Carrega TODOS os arquivos checklist_*.txt do GitHub
+        // Função para carregar checklists remotos
         async function loadRemoteChecklists() {
             const modal = document.getElementById('remoteModal');
             const listContainer = document.getElementById('remote-checklist-list');
@@ -458,9 +458,9 @@
                 const response = await fetch('https://api.github.com/repos/doleosorocaba/Apresentacao/contents/');
                 const files = await response.json();
                 
-                // Filtro corrigido com expressão regular para pegar TODOS os arquivos
                 const checklists = files.filter(file => 
-                    /^checklist_.*\.txt$/i.test(file.name) && 
+                    file.name.toLowerCase().startsWith('checklist_') && 
+                    file.name.toLowerCase().endsWith('.txt') && 
                     file.type === 'file'
                 );
                 
@@ -474,10 +474,10 @@
                     const item = document.createElement('div');
                     item.className = 'remote-checklist-item';
                     
-                    // Formata o nome para exibição (remove prefixo/sufixo)
-                    const displayName = file.name.replace(/^checklist_/, '')
-                                               .replace(/\.txt$/, '')
-                                               .replace(/_/g, ' ');
+                    const displayName = file.name
+                        .replace(/^checklist_/, '')
+                        .replace(/\.txt$/i, '')
+                        .replace(/_/g, ' ');
                     
                     item.textContent = displayName;
                     item.onclick = async () => {
@@ -519,10 +519,9 @@
             newPhotos.forEach((file, index) => {
                 const reader = new FileReader();
                 reader.onload = async function(e) {
-                    // Verifica o tamanho da imagem e redimensiona se necessário
                     let imageData = e.target.result;
                     
-                    if (file.size > 1048576) { // 1MB em bytes
+                    if (file.size > 1048576) {
                         try {
                             imageData = await resizeImageToMaxSize(imageData, 1048576);
                         } catch (error) {
@@ -554,12 +553,10 @@
             let qualityLevel = quality;
             let resizedDataUrl = imageDataUrl;
             
-            // Verifica se já está dentro do tamanho máximo
             if (dataURItoBlob(imageDataUrl).size <= maxSizeBytes) {
                 return imageDataUrl;
             }
             
-            // Reduz progressivamente a qualidade até atingir o tamanho desejado
             while (qualityLevel > 0.1) {
                 resizedDataUrl = await resizeImage(imageDataUrl, 1024, 1024, qualityLevel);
                 const blob = dataURItoBlob(resizedDataUrl);
@@ -571,7 +568,6 @@
                 qualityLevel -= 0.1;
             }
             
-            // Se ainda estiver grande, retorna o menor tamanho possível
             return resizedDataUrl;
         }
 
@@ -664,7 +660,6 @@
                 buttons.style.display = 'none';
                 deleteButtons.forEach(btn => btn.style.visibility = 'hidden');
                 
-                // Processa todas as fotos para garantir que estão dentro do limite de tamanho
                 const photoProcessing = [];
                 for (const previewId in photoData) {
                     if (photoData.hasOwnProperty(previewId)) {
@@ -681,14 +676,12 @@
                 
                 await Promise.all(photoProcessing);
                 
-                // Salva os originais para restaurar depois
                 const originalImages = {};
                 for (const previewId in photoData) {
                     if (photoData.hasOwnProperty(previewId)) {
                         const preview = document.getElementById(previewId);
                         originalImages[previewId] = preview.innerHTML;
                         
-                        // Atualiza as miniaturas com as imagens redimensionadas
                         preview.innerHTML = '';
                         photoData[previewId].forEach((photo, index) => {
                             const thumb = document.createElement('div');
@@ -699,7 +692,6 @@
                     }
                 }
                 
-                // Gera o PDF
                 const sections = document.querySelectorAll('.checklist-section');
                 const pageHeight = pdf.internal.pageSize.getHeight() - 20;
                 
@@ -725,7 +717,6 @@
                     pdf.addImage(imgData, 'JPEG', 10, 10, imgWidth, adjustedHeight);
                 }
                 
-                // Adiciona as fotos em tamanho maior no final do PDF
                 let hasPhotos = false;
                 for (const previewId in photoData) {
                     if (photoData[previewId] && photoData[previewId].length > 0) {
@@ -745,25 +736,20 @@
                     const imgHeight = imgWidth * 0.75;
                     
                     for (const previewId in photoData) {
-                        if (photoData.hasOwnProperty(previewId) {
+                        if (photoData.hasOwnProperty(previewId)) {
                             for (let i = 0; i < photoData[previewId].length; i++) {
                                 const photo = photoData[previewId][i];
                                 
-                                // Verifica se há espaço na página atual
                                 if (yPosition + imgHeight > pdf.internal.pageSize.getHeight() - 20) {
                                     pdf.addPage();
                                     yPosition = 20;
                                     xPosition = 10;
                                 }
                                 
-                                // Adiciona a imagem
                                 pdf.addImage(photo.resizedData || photo.data, 'JPEG', xPosition, yPosition, imgWidth, imgHeight);
-                                
-                                // Adiciona legenda
                                 pdf.setFontSize(10);
                                 pdf.text(`Foto ${i+1}: ${photo.name.substring(0, 20)}...`, xPosition + 5, yPosition + imgHeight + 5);
                                 
-                                // Atualiza a posição para a próxima imagem
                                 if (xPosition === 10) {
                                     xPosition += imgWidth + 10;
                                 } else {
@@ -777,7 +763,6 @@
                 
                 pdf.save('Checklist_Veicular_' + new Date().toISOString().slice(0, 10) + '.pdf');
                 
-                // Restaura as miniaturas originais
                 for (const previewId in originalImages) {
                     if (originalImages.hasOwnProperty(previewId)) {
                         document.getElementById(previewId).innerHTML = originalImages[previewId];
