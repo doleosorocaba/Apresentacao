@@ -319,6 +319,20 @@
             margin-top: 5px;
             display: none;
         }
+        /* Área de debug */
+        #debug-info {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(255,255,255,0.9);
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 9999;
+            font-size: 14px;
+            color: #333;
+            max-width: 300px;
+        }
     </style>
 </head>
 <body>
@@ -390,9 +404,20 @@
         <button id="save-pdf">Salvar como PDF</button>
     </div>
 
+    <!-- Área de debug para testes -->
+    <div id="debug-info">Aguardando interação...</div>
+
     <script>
         // Sistema de Fotos
         const photoData = {};
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+        // Função para debug
+        function logDebug(message) {
+            const debugInfo = document.getElementById('debug-info');
+            debugInfo.textContent = message;
+            console.log('DEBUG:', message);
+        }
 
         // Função para formatar a data atual
         function formatarDataAtual() {
@@ -415,35 +440,37 @@
 
         // Função para formatar placa no padrão XXX-XXXX
         function formatarPlaca(placa) {
-            // Remove qualquer hífen existente e converte para maiúsculas
             placa = placa.replace(/-/g, '').toUpperCase();
-            
-            // Insere o hífen na posição correta se necessário
             if (placa.length > 3) {
                 placa = placa.substring(0, 3) + '-' + placa.substring(3);
             }
-            
             return placa;
         }
 
-        // Função para criar inputs de arquivo com tratamento especial para câmera
+        // Função otimizada para criar inputs de arquivo
         function createPhotoInput(itemId) {
             const fileInput = document.createElement('input');
             fileInput.type = 'file';
             fileInput.id = `photo-${itemId}`;
             fileInput.className = 'file-input';
             fileInput.accept = 'image/*';
-            fileInput.capture = 'environment'; // Prioriza a câmera traseira
-            fileInput.multiple = true;
             
-            // Resetar o valor quando clicado para garantir que o evento change seja disparado
-            fileInput.onclick = function() {
-                this.value = '';
-            };
-            
-            fileInput.addEventListener('change', function() {
-                if (this.files && this.files.length > 0) {
-                    processSelectedFiles(this.files, `${itemId}-preview`, this);
+            if (isMobile) {
+                fileInput.capture = 'environment';
+                fileInput.onclick = function() {
+                    this.value = '';
+                    logDebug("Input de foto clicado (resetado)");
+                };
+            }
+
+            fileInput.addEventListener('change', function(e) {
+                if (e.target.files && e.target.files.length > 0) {
+                    logDebug(`Foto selecionada: ${e.target.files[0].name}`);
+                    setTimeout(() => {
+                        processSelectedFiles(e.target.files, `${itemId}-preview`, this);
+                    }, 100);
+                } else {
+                    logDebug("Nenhum arquivo selecionado após captura");
                 }
             });
             
@@ -459,6 +486,7 @@
             const newPhotos = Array.from(files).slice(0, 2 - existingPhotos.length);
             
             if (newPhotos.length === 0) {
+                logDebug("Limite de fotos atingido (máx. 2)");
                 alert('Você já atingiu o limite de 2 fotos para este item!');
                 input.value = '';
                 return;
@@ -466,6 +494,7 @@
             
             for (let file of newPhotos) {
                 if (file.size > 1048576) {
+                    logDebug("Foto muito grande (limite 1MB)");
                     alert('Cada foto deve ter no máximo 1MB!');
                     input.value = '';
                     return;
@@ -485,13 +514,17 @@
                     });
                     
                     processed++;
+                    logDebug(`Processando foto ${processed} de ${newPhotos.length}`);
                     
                     if (processed === newPhotos.length) {
                         updatePhotoPreview(previewId);
                         uploadBtn.textContent = `Adicionar Fotos (${photoData[previewId].length}/2)`;
-                        // Limpar o input para permitir nova seleção
                         input.value = '';
+                        logDebug("Foto adicionada com sucesso!");
                     }
+                };
+                reader.onerror = function() {
+                    logDebug("Erro ao ler a foto");
                 };
                 reader.readAsDataURL(file);
             });
@@ -524,6 +557,7 @@
             
             const fileInput = document.querySelector(`input[onchange*="${previewId}"]`);
             fileInput.value = '';
+            logDebug(`Foto ${index+1} removida`);
         }
 
         // Função para processar o arquivo TXT
@@ -545,7 +579,6 @@
                         const sectionName = parts[0];
                         const items = parts[1].split(',').map(item => item.trim());
                         
-                        // Cria uma nova seção
                         currentSection = document.createElement('div');
                         currentSection.className = 'checklist-section';
                         
@@ -553,7 +586,6 @@
                         sectionTitle.textContent = sectionName;
                         currentSection.appendChild(sectionTitle);
                         
-                        // Adiciona os itens à seção
                         for (const item of items) {
                             if (item === '') continue;
                             
@@ -563,19 +595,16 @@
                             const itemDiv = document.createElement('div');
                             itemDiv.className = 'checklist-item';
                             
-                            // Checkbox
                             const checkbox = document.createElement('input');
                             checkbox.type = 'checkbox';
                             checkbox.id = itemId;
                             itemDiv.appendChild(checkbox);
                             
-                            // Label
                             const label = document.createElement('label');
                             label.htmlFor = itemId;
                             label.textContent = item;
                             itemDiv.appendChild(label);
                             
-                            // Notas
                             const notesDiv = document.createElement('div');
                             notesDiv.className = 'notes';
                             const textarea = document.createElement('textarea');
@@ -583,7 +612,6 @@
                             notesDiv.appendChild(textarea);
                             itemDiv.appendChild(notesDiv);
                             
-                            // Upload de fotos - usando a nova função createPhotoInput
                             const photoDiv = document.createElement('div');
                             photoDiv.className = 'photo-upload';
                             
@@ -600,7 +628,6 @@
                             counterSpan.textContent = 'Máx. 2 fotos (1MB cada)';
                             photoDiv.appendChild(counterSpan);
                             
-                            // Usar a nova função para criar o input de foto
                             const fileInput = createPhotoInput(itemId);
                             photoDiv.appendChild(fileInput);
                             
@@ -620,6 +647,7 @@
                 if (itemCount === 0) {
                     checklistForm.innerHTML = '<p>Formato do arquivo inválido. Use: "Seção; item1, item2, item3"</p>';
                 }
+                logDebug(`Checklist carregado com ${itemCount} itens`);
             };
             reader.readAsText(file);
         }
@@ -737,7 +765,6 @@
 
         // Gerador de PDF
         async function generatePDF() {
-            // Validar placa antes de gerar o PDF
             const placaInput = document.getElementById('placa');
             const placa = placaInput.value.trim();
             
@@ -762,7 +789,6 @@
                 buttons.style.display = 'none';
                 deleteButtons.forEach(btn => btn.style.visibility = 'hidden');
                 
-                // Adicionar informações do cabeçalho ao PDF
                 const data = document.getElementById('data').value || formatarDataAtual();
                 const placaFormatada = formatarPlaca(placa);
                 const nome = document.getElementById('nome').value || placaFormatada;
@@ -770,7 +796,6 @@
                 const ano = document.getElementById('ano').value;
                 const observacoes = document.getElementById('observacoes').value;
                 
-                // Configurações iniciais do PDF
                 pdf.setFontSize(16);
                 pdf.setFont(undefined, 'bold');
                 pdf.text('EasyLift Checklist PRO DIY', 105, 15, { align: 'center' });
@@ -778,25 +803,17 @@
                 pdf.setFontSize(12);
                 pdf.setFont(undefined, 'normal');
                 
-                // Informações do veículo em duas colunas
                 let yPos = 30;
-                
-                // Coluna esquerda
                 pdf.text(`Data: ${data}`, 15, yPos);
                 pdf.text(`Nome: ${nome}`, 15, yPos + 7);
                 pdf.text(`Modelo: ${modelo || 'Não informado'}`, 15, yPos + 14);
-                
-                // Coluna direita
                 pdf.text(`Placa: ${placaFormatada}`, 105, yPos);
                 pdf.text(`Ano: ${ano || 'Não informado'}`, 105, yPos + 7);
-                
                 yPos += 21;
                 
-                // Observações (se houver)
                 if (observacoes) {
                     pdf.text('Observações:', 15, yPos);
                     yPos += 7;
-                    
                     const observacoesLines = pdf.splitTextToSize(observacoes, 180);
                     pdf.text(observacoesLines, 15, yPos);
                     yPos += (observacoesLines.length * 5) + 10;
@@ -804,11 +821,9 @@
                     yPos += 10;
                 }
                 
-                // Adicionar uma linha divisória
                 pdf.line(15, yPos, 195, yPos);
                 yPos += 15;
                 
-                // Processar fotos para redimensionamento
                 const photoProcessing = [];
                 for (const previewId in photoData) {
                     if (photoData.hasOwnProperty(previewId)) {
@@ -825,7 +840,6 @@
                 
                 await Promise.all(photoProcessing);
                 
-                // Substituir imagens originais pelas redimensionadas temporariamente
                 const originalImages = {};
                 for (const previewId in photoData) {
                     if (photoData.hasOwnProperty(previewId)) {
@@ -842,7 +856,6 @@
                     }
                 }
                 
-                // Capturar cada seção do checklist como imagem
                 const sections = document.querySelectorAll('.checklist-section');
                 const pageHeight = pdf.internal.pageSize.getHeight();
                 
@@ -864,7 +877,6 @@
                     const imgWidth = pdf.internal.pageSize.getWidth() - 30;
                     const imgHeight = (canvas.height * imgWidth) / canvas.width;
                     
-                    // Verificar se a imagem cabe na página atual
                     if (yPos + imgHeight > pageHeight - 20) {
                         pdf.addPage();
                         yPos = 15;
@@ -874,10 +886,8 @@
                     yPos += imgHeight + 10;
                 }
                 
-                // Nome do arquivo PDF com placa e data
                 pdf.save('Checklist_Veicular_' + placaFormatada.replace('-', '') + '_' + new Date().toISOString().slice(0, 10) + '.pdf');
                 
-                // Restaurar imagens originais
                 for (const previewId in originalImages) {
                     if (originalImages.hasOwnProperty(previewId)) {
                         document.getElementById(previewId).innerHTML = originalImages[previewId];
@@ -898,20 +908,30 @@
 
         // Inicialização
         document.addEventListener('DOMContentLoaded', function() {
+            logDebug(`Aplicativo iniciado. Dispositivo móvel: ${isMobile}`);
+            
+            // Configuração inicial para mobile
+            if (isMobile) {
+                document.querySelectorAll('input[type="file"]').forEach(input => {
+                    if (!input.id.includes('qrcode')) {
+                        input.setAttribute('accept', 'image/*');
+                        input.setAttribute('capture', 'environment');
+                    }
+                });
+            }
+            
             // Preencher data atual automaticamente
             document.getElementById('data').value = formatarDataAtual();
             
             // Configurar validação da placa
             const placaInput = document.getElementById('placa');
             placaInput.addEventListener('input', function(e) {
-                // Formatar automaticamente (XXX-XXXX)
                 let value = e.target.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase();
                 if (value.length > 3) {
-                    value = value.substring(0, 3) + '-' + value.substring(3, 7);
+                    value = value.substring(0, 3) + '-' + value.substring(3);
                 }
                 e.target.value = value;
                 
-                // Remover mensagem de erro se válida
                 if (validarPlaca(value)) {
                     e.target.classList.remove('error');
                     document.getElementById('placa-error').style.display = 'none';
@@ -981,7 +1001,6 @@
                     document.querySelectorAll('.upload-btn').forEach(b => b.textContent = 'Adicionar Fotos (0/2)');
                     Object.keys(photoData).forEach(key => photoData[key] = []);
                     
-                    // Limpar informações do veículo, exceto data
                     document.getElementById('placa').value = '';
                     document.getElementById('nome').value = '';
                     document.getElementById('modelo').value = '';
@@ -989,9 +1008,10 @@
                     document.getElementById('observacoes').value = '';
                     document.getElementById('data').value = formatarDataAtual();
                     
-                    // Remover erros de validação
                     document.getElementById('placa').classList.remove('error');
                     document.getElementById('placa-error').style.display = 'none';
+                    
+                    logDebug("Checklist limpo com sucesso");
                 }
             });
             
