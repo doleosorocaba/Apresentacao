@@ -494,6 +494,9 @@
         // Sistema de Fotos
         const photoData = {};
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const MAX_PHOTO_SIZE_KB = 500; // Limite máximo de 500KB para as fotos
+        const MAX_PHOTO_WIDTH = 1024;  // Largura máxima após redimensionamento
+        const MAX_PHOTO_HEIGHT = 1024;  // Altura máxima após redimensionamento
 
         // Função para debug
         function logDebug(message) {
@@ -530,6 +533,104 @@
             return placa;
         }
 
+        // Função para redimensionar imagem mantendo proporção
+        function resizeImageToCanvas(image, maxWidth, maxHeight) {
+            const canvas = document.createElement('canvas');
+            let width = image.width;
+            let height = image.height;
+
+            // Redimensionar mantendo proporção
+            if (width > height) {
+                if (width > maxWidth) {
+                    height *= maxWidth / width;
+                    width = maxWidth;
+                }
+            } else {
+                if (height > maxHeight) {
+                    width *= maxHeight / height;
+                    height = maxHeight;
+                }
+            }
+
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(image, 0, 0, width, height);
+            return canvas;
+        }
+
+        // Função para comprimir imagem usando busca binária para encontrar a melhor qualidade
+        async function compressImageFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = async function() {
+                        try {
+                            // Redimensionar primeiro
+                            const canvas = resizeImageToCanvas(img, MAX_PHOTO_WIDTH, MAX_PHOTO_HEIGHT);
+                            
+                            // Busca binária para encontrar a melhor qualidade
+                            let minQuality = 0.6;  // 60% - qualidade mínima aceitável
+                            let maxQuality = 0.9;  // 90% - qualidade máxima
+                            let bestQuality = minQuality;
+                            let bestBlob = null;
+                            
+                            // Verificar se já está abaixo do tamanho máximo com qualidade 90%
+                            canvas.toBlob(function(blob) {
+                                if (blob.size <= MAX_PHOTO_SIZE_KB * 1024) {
+                                    resolve(blob);
+                                    return;
+                                }
+                                
+                                // Se não estiver, fazer busca binária
+                                binarySearchQuality(canvas, minQuality, maxQuality, resolve, reject);
+                            }, 'image/jpeg', maxQuality);
+                        } catch (error) {
+                            reject(error);
+                        }
+                    };
+                    img.onerror = reject;
+                    img.src = e.target.result;
+                };
+                reader.onerror = reject;
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Função auxiliar para busca binária da qualidade de compressão
+        function binarySearchQuality(canvas, minQuality, maxQuality, resolve, reject, iterations = 0, maxIterations = 10) {
+            if (iterations >= maxIterations) {
+                // Se atingir o máximo de iterações, usar a melhor qualidade encontrada
+                canvas.toBlob(function(blob) {
+                    resolve(blob);
+                }, 'image/jpeg', minQuality);
+                return;
+            }
+            
+            const midQuality = (minQuality + maxQuality) / 2;
+            
+            canvas.toBlob(function(blob) {
+                if (!blob) {
+                    reject(new Error("Falha ao gerar blob da imagem"));
+                    return;
+                }
+                
+                const sizeKB = blob.size / 1024;
+                
+                if (Math.abs(sizeKB - MAX_PHOTO_SIZE_KB) < 10 || iterations === maxIterations - 1) {
+                    // Se estiver dentro da margem de erro ou última iteração
+                    resolve(blob);
+                } else if (sizeKB > MAX_PHOTO_SIZE_KB) {
+                    // Se ainda estiver grande, tentar com qualidade menor
+                    binarySearchQuality(canvas, minQuality, midQuality, resolve, reject, iterations + 1, maxIterations);
+                } else {
+                    // Se estiver pequeno, tentar com qualidade maior
+                    binarySearchQuality(canvas, midQuality, maxQuality, resolve, reject, iterations + 1, maxIterations);
+                }
+            }, 'image/jpeg', midQuality);
+        }
+
         // Função otimizada para criar inputs de arquivo
         function createPhotoInput(itemId) {
             const fileInput = document.createElement('input');
@@ -560,8 +661,8 @@
             return fileInput;
         }
 
-        // Função para processar os arquivos selecionados (fotos)
-        function processSelectedFiles(files, previewId, input) {
+        // Função para processar os arquivos selecionados (fotos) - MODIFICADA
+        async function processSelectedFiles(files, previewId, input) {
             const preview = document.getElementById(previewId);
             const uploadBtn = input.previousElementSibling.previousElementSibling;
             
@@ -575,42 +676,46 @@
                 return;
             }
             
-            for (let file of newPhotos) {
-                if (file.size > 1048576) {
-                    logDebug("Foto muito grande (limite 1MB)");
-                    alert('Cada foto deve ter no máximo 1MB!');
-                    input.value = '';
-                    return;
-                }
-            }
-            
             if (!photoData[previewId]) photoData[previewId] = [];
             
-            let processed = 0;
-            newPhotos.forEach((file, index) => {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    photoData[previewId].push({
-                        name: file.name,
-                        data: e.target.result,
-                        file: file
+            // Mostrar feedback de processamento
+            const originalBtnText = uploadBtn.textContent;
+            uploadBtn.textContent = "Comprimindo imagens...";
+            uploadBtn.disabled = true;
+            
+            try {
+                for (let file of newPhotos) {
+                    // Comprimir a imagem
+                    const compressedBlob = await compressImageFile(file);
+                    
+                    // Ler o blob comprimido como Data URL
+                    const reader = new FileReader();
+                    await new Promise((resolve) => {
+                        reader.onload = function(e) {
+                            photoData[previewId].push({
+                                name: file.name,
+                                data: e.target.result,
+                                file: new File([compressedBlob], file.name, { type: 'image/jpeg' })
+                            });
+                            resolve();
+                        };
+                        reader.readAsDataURL(compressedBlob);
                     });
                     
-                    processed++;
-                    logDebug(`Processando foto ${processed} de ${newPhotos.length}`);
-                    
-                    if (processed === newPhotos.length) {
-                        updatePhotoPreview(previewId);
-                        uploadBtn.textContent = `Adicionar Fotos (${photoData[previewId].length}/2)`;
-                        input.value = '';
-                        logDebug("Foto adicionada com sucesso!");
-                    }
-                };
-                reader.onerror = function() {
-                    logDebug("Erro ao ler a foto");
-                };
-                reader.readAsDataURL(file);
-            });
+                    logDebug(`Foto ${file.name} comprimida para ${Math.round(compressedBlob.size/1024)}KB`);
+                }
+                
+                updatePhotoPreview(previewId);
+                uploadBtn.textContent = `Adicionar Fotos (${photoData[previewId].length}/2)`;
+                input.value = '';
+                logDebug("Fotos adicionadas com sucesso!");
+            } catch (error) {
+                console.error("Erro ao processar fotos:", error);
+                alert("Erro ao processar as fotos. Por favor, tente novamente.");
+                logDebug("Erro ao processar fotos: " + error.message);
+            } finally {
+                uploadBtn.disabled = false;
+            }
         }
 
         // Função para atualizar a visualização das fotos
@@ -708,7 +813,7 @@
                             
                             const counterSpan = document.createElement('span');
                             counterSpan.className = 'photo-counter';
-                            counterSpan.textContent = 'Máx. 2 fotos (1MB cada)';
+                            counterSpan.textContent = 'Máx. 2 fotos (500KB cada)';
                             photoDiv.appendChild(counterSpan);
                             
                             const fileInput = createPhotoInput(itemId);
