@@ -1019,22 +1019,56 @@
             }
         }
 
-        // Função para enviar por WhatsApp
-        function sendByWhatsApp(number, message, pdfBlob) {
-            // Formata o número (remove tudo que não é dígito)
-            const formattedNumber = number.replace(/\D/g, '');
-            
-            // Cria a URL do WhatsApp
-            const url = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(message)}`;
-            
-            // Abre em uma nova janela
-            window.open(url, '_blank');
-            
-            // Nota: Envio real de arquivos via WhatsApp Web requer upload prévio do arquivo
-            // Esta é uma solução simplificada que apenas abre o chat com a mensagem
-            alert('O PDF foi gerado e você pode anexá-lo manualmente no WhatsApp. O chat já foi aberto com a mensagem pronta.');
-            
-            return true;
+        // Função para enviar por WhatsApp (ATUALIZADA)
+        async function sendByWhatsApp(number, message, pdfBlob) {
+            try {
+                // Formata o número (remove tudo que não é dígito)
+                const formattedNumber = number.replace(/\D/g, '');
+                
+                // Cria um URL temporário para o Blob
+                const pdfUrl = URL.createObjectURL(pdfBlob);
+                
+                // Cria um link de download forçado
+                const a = document.createElement('a');
+                a.href = pdfUrl;
+                
+                // Nome do arquivo consistente
+                const placa = document.getElementById('placa').value.replace(/-/g, '');
+                const fileName = `Checklist_${placa}_${new Date().toISOString().slice(0, 10)}.pdf`;
+                a.download = fileName;
+                
+                // Adiciona ao documento e clica programaticamente
+                document.body.appendChild(a);
+                a.click();
+                
+                // Limpeza
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(pdfUrl);
+                }, 100);
+                
+                // Cria a URL do WhatsApp
+                const whatsappUrl = `https://wa.me/${formattedNumber}?text=${encodeURIComponent(message)}`;
+                
+                // Abre o WhatsApp após um pequeno delay para garantir que o download começou
+                setTimeout(() => {
+                    window.open(whatsappUrl, '_blank');
+                    
+                    // Mensagem mais informativa
+                    alert(`PDF salvo como "${fileName}" na sua pasta de downloads. 
+                           \n\nQuando o WhatsApp abrir:
+                           \n1. Toque no clip (anexo)
+                           \n2. Selecione "Documento"
+                           \n3. Navegue até sua pasta de downloads
+                           \n4. Selecione o arquivo "${fileName}"`);
+                }, 1000);
+                
+                return true;
+            } catch (error) {
+                console.error('Erro no envio por WhatsApp:', error);
+                alert('Erro ao preparar o arquivo para WhatsApp: ' + error.message);
+                return false;
+            }
         }
 
         // Inicialização
@@ -1204,7 +1238,7 @@
                 document.getElementById('whatsappModal').style.display = 'block';
             });
             
-            // Configurar o botão de confirmar envio por WhatsApp
+            // Configurar o botão de confirmar envio por WhatsApp (ATUALIZADO)
             document.getElementById('confirm-whatsapp').addEventListener('click', async function() {
                 const number = document.getElementById('whatsapp-number').value;
                 const message = document.getElementById('whatsapp-message').value;
@@ -1219,7 +1253,7 @@
                 
                 try {
                     const pdfBlob = await generatePDFBlob();
-                    sendByWhatsApp(number, message, pdfBlob);
+                    await sendByWhatsApp(number, message, pdfBlob);
                     document.getElementById('whatsappModal').style.display = 'none';
                 } catch (error) {
                     console.error('Erro no processo de envio:', error);
